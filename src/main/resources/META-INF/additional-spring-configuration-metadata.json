@@ -1,0 +1,16 @@
+{
+  "groups": [
+    {
+      "name": "astrowidja",
+      "description": "The settings of the AstroWidja programme."
+    }
+  ],
+  "properties": [
+    {
+      "name": "astrowidja.settings",
+      "type": "java.lang.String",
+      "description": "Path to the settings' source.",
+      "default": "settings.ini"
+    }
+  ]
+}
