@@ -1,11 +1,11 @@
-package ru.swetophor.astrowidjaspringshell.utils;
+package ru.swetophor.astrowidjaspring.utils;
 
-import ru.swetophor.astrowidjaspringshell.config.Settings;
-import ru.swetophor.astrowidjaspringshell.model.Astra;
+import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
-import static ru.swetophor.astrowidjaspringshell.model.ZodiacSign.zodiumIcon;
+import static ru.swetophor.astrowidjaspring.model.astro.ZodiacSign.zodiumIcon;
 
 /**
  * Инструментальный класс, содержащий константы и методы

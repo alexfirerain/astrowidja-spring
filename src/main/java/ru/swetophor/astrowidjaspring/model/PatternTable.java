@@ -1,12 +1,13 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
-import ru.swetophor.astrowidjaspringshell.config.Settings;
-import ru.swetophor.astrowidjaspringshell.utils.Decorator;
+import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.utils.Decorator;
 
 import java.util.*;
 import java.util.stream.IntStream;
 
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.joining;
 
 /**
  * Удобное представление результата анализа Карт-Объекта, одинарного или группового.
@@ -34,7 +35,7 @@ public class PatternTable {
      * найденных по {@link AstroMatrix АстроМатрице}. Ключами становятся все возможные сочетания
      * исходных карт. Значениями ставятся объекты {@link PatternAnalysis Анализ Паттернов},
      * которые затем заполняются с помощью {@link #addPattern} для всех групп паттернов,
-     * которые будут расчитаны для Матрицы.
+     * которые будут рассчитаны для Матрицы.
      * Таким образом, если Матрица построена по всего лишь
      * одной карте, в сопоставлении будет только одна запись.
      * Если {@code sourceCharts} содержит карты {@code {А,Б}},
@@ -52,8 +53,8 @@ public class PatternTable {
 
     /**
      * Добавляет {@link Pattern узор} в нужный {@link PatternAnalysis узор-разбор} соответственно его
-     * хозяевам (т.е. к тому анализу паттернов, который соответствует
-     * набору исходных карт, к которым принадлежат астры паттерна)
+     * хозяевам (т.е. к анализу паттернов, соответствующему
+     * набору исходных карт, к которому принадлежат астры паттерна)
      * @param pattern добавляемый к Таблице очередной узор.
      */
     public void addPattern(Pattern pattern) {

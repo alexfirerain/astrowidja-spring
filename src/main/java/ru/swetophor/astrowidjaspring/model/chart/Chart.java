@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.chart;
 
 import lombok.Getter;
 import ru.swetophor.astrowidjaspring.model.astro.Astra;
@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import static ru.swetophor.astrowidjaspring.utils.Mechanics.zodiacFormat;
 
 @Getter
-public final class Chart extends ChartObject {
+public non-sealed class Chart extends ChartObject {
 
     private final List<Astra> astras = new ArrayList<>();
 

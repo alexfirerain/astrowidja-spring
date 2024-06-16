@@ -1,6 +1,7 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.astro;
 
 import lombok.Getter;
+import ru.swetophor.astrowidjaspring.model.Harmonics;
 import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
 
 import java.util.List;

@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.astro;
 
 import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.normalizeCoordinate;
 

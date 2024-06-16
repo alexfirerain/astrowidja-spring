@@ -1,8 +1,8 @@
 package ru.swetophor.astrowidjaspring.client;
 
-import ru.swetophor.astrowidjaspringshell.mainframe.Main;
-import ru.swetophor.astrowidjaspringshell.model.ChartList;
-import ru.swetophor.astrowidjaspringshell.model.ChartObject;
+import ru.swetophor.astrowidjaspring.mainframe.Main;
+import ru.swetophor.astrowidjaspring.model.chart.ChartList;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
 
 public interface UserController {
 

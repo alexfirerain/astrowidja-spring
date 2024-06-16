@@ -1,7 +1,8 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.astro;
 
 import lombok.Getter;
 import lombok.Setter;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
 import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
 
 import java.util.ArrayList;

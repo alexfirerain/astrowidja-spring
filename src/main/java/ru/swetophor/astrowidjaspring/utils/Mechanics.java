@@ -1,15 +1,19 @@
-package ru.swetophor.astrowidjaspringshell.utils;
+package ru.swetophor.astrowidjaspring.utils;
 
-import ru.swetophor.astrowidjaspringshell.client.CommandLineController;
-import ru.swetophor.astrowidjaspringshell.model.*;
+import ru.swetophor.astrowidjaspring.client.CommandLineController;
+import ru.swetophor.astrowidjaspring.model.*;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.astro.AstraEntity;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.model.chart.ChartList;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
 
 import java.util.stream.Collectors;
 
-import static java.lang.Math.abs;
 import static java.lang.String.format;
-import static ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics.*;
-import static ru.swetophor.astrowidjaspringshell.model.ZodiacSign.zodiumIcon;
-import static ru.swetophor.astrowidjaspringshell.utils.Decorator.print;
+import static ru.swetophor.astrowidjaspring.model.astro.ZodiacSign.zodiumIcon;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.*;
+import static ru.swetophor.astrowidjaspring.utils.Decorator.print;
 
 /**
  * Инструментальный класс для решения

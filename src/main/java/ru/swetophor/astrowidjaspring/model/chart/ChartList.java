@@ -1,6 +1,7 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.chart;
 
 
+import lombok.Getter;
 import ru.swetophor.astrowidjaspring.exception.ChartNotFoundException;
 import ru.swetophor.astrowidjaspring.utils.Mechanics;
 
@@ -18,11 +19,21 @@ import java.util.stream.Stream;
 public class ChartList {
     /**
      * Карты, хранимые в списке.
+     * -- GETTER --
+     *  Отдаёт список всех присутствующих карт в историческом порядке.
+
      */
+    @Getter
     private final List<ChartObject> charts = new ArrayList<>();
     /**
      * Имена хранимых в списке карт.
+     * -- GETTER --
+     *  Отдаёт список всех имён присутствующих карт.
+     *
+     * @return список имён карт в историческом порядке.
+
      */
+    @Getter
     private final List<String> names = new ArrayList<>();
     private String listName = "список карт";
     protected transient int modCount = 0;
@@ -96,14 +107,20 @@ public class ChartList {
 
     /**
      * Выдаёт текстовое представление всех карт списка
-     * в том виде, как предоставляется {@link ChartObject#getString()}.
+     * в том виде, как они хранятся в daw-файле.
      *
      * @return строку, конкатенирующую строковые представления всех
-     * космограмм, содержащихся в этом списке.
+     * карт и многокарт, содержащихся в этом списке.
      */
     public String getString() {
+        List<Chart> extraCharts = charts.stream()
+                .filter(c -> c instanceof MultiChart)
+                .flatMap(chartObject -> Arrays.stream(chartObject.getData()))
+                .filter(c -> !this.contains(c))
+                .toList();
+        charts.addAll(extraCharts);
         return charts.stream()
-                .map(ChartObject::getString)
+                .map(this::toStoringString)
                 .collect(Collectors.joining());
     }
 
@@ -149,6 +166,12 @@ public class ChartList {
      * @return {@code true}, если список изменился в результате операции.
      */
     public boolean add(ChartObject chart) {
+        if (chart == null) {
+            charts.add(null);
+            names.add(null);
+            ++this.modCount;
+            return true;
+        }
         int mod = this.modCount;
         if (contains(chart.getName()))
             Mechanics.resolveCollision(this, chart, "этом списке");
@@ -332,10 +355,6 @@ public class ChartList {
         return collection.stream().map(ChartObject::getName).toList();
     }
 
-    public List<String> chartsToNames() {
-        return charts.stream().map(ChartObject::getName).toList();
-    }
-
     /**
      * Удаляет из списка карт все элементы, которые присутствуют в указанном собрании.
      *
@@ -397,24 +416,6 @@ public class ChartList {
      */
     public ChartObject get(String name) {
         return get(indexOf(name));
-    }
-
-    /**
-     * Отдаёт список всех имён присутствующих карт.
-     *
-     * @return список имён карт в историческом порядке.
-     */
-    public List<String> getNames() {
-        return names;
-    }
-
-    /**
-     * Отдаёт список всех присутствующих карт.
-     *
-     * @return список карт в историческом порядке.
-     */
-    public List<ChartObject> getCharts() {
-        return charts;
     }
 
     /**
@@ -511,5 +512,23 @@ public class ChartList {
     @Override
     public int hashCode() {
         return Objects.hash(charts);
+    }
+
+    private String toStoringString(ChartObject co) {
+        return co instanceof Chart ?
+                co.getString() :
+                Arrays.stream(co.getData())
+                .map(Chart::getName)
+                .collect(Collectors.joining(" и #", "<%s: #"
+                        .formatted(co.getName()),
+                        ">\n"));
+    }
+
+    public static ChartList fromStoringString(String input) {
+        ChartList list = new ChartList();
+
+
+
+        return list;
     }
 }

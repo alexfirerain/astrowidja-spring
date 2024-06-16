@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.astro;
 
 import java.util.HashSet;
 import java.util.Set;

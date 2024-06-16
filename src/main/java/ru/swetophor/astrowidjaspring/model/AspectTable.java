@@ -1,6 +1,7 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
-import ru.swetophor.astrowidjaspringshell.utils.Decorator;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.utils.Decorator;
 
 import java.util.*;
 

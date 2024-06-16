@@ -1,7 +1,8 @@
 package ru.swetophor.astrowidjaspring.repository;
 
-import ru.swetophor.astrowidjaspringshell.model.ChartList;
-import ru.swetophor.astrowidjaspringshell.model.ChartObject;
+import ru.swetophor.astrowidjaspring.model.AlbumInfo;
+import ru.swetophor.astrowidjaspring.model.chart.ChartList;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -15,8 +16,6 @@ public interface ChartRepository {
                         .format(new Date()));
     }
 
-    boolean albumExists(String albumName);
-
     List<String> albumNames();
 
     List<String> getAlbumContents(String albumName);
@@ -29,7 +28,13 @@ public interface ChartRepository {
 
     boolean addChartsToAlbum(String s, ChartObject... chartObject);
 
-    void saveChartsAsAlbum(ChartList desk, String s);
+    String saveChartsAsAlbum(ChartList desk, String s);
 
     String deleteAlbum(String groupToDelete);
+
+    AlbumInfo getAlbumSummary(String filename);
+
+    List<AlbumInfo> getLibrarySummery();
+
+    List<AlbumInfo> getLibraryUpdates(long since);
 }

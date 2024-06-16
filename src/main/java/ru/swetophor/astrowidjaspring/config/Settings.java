@@ -3,34 +3,30 @@ package ru.swetophor.astrowidjaspring.config;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
-import static ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics.CIRCLE;
-import static ru.swetophor.astrowidjaspringshell.utils.Decorator.print;
+import static ru.swetophor.astrowidjaspring.config.Environments.settingsSource;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.CIRCLE;
+import static ru.swetophor.astrowidjaspring.utils.Decorator.print;
 
 /**
  * Класс-хранилище статических глобальных переменных АстроВидьи.
  */
 @Component
 public class Settings {
-//    @Value("${astrowidja.settings}")
-    private static final String sourcePath = "settings.ini";
 
-    private static final File settingsSourceFile = new File(sourcePath);
     private static final Map<String, String> settingsMap = new HashMap<>();
 
     private static final int EDGE_HARMONIC_DEFAULT = 108;
     private static final int ORBS_DIVISOR_DEFAULT = 30;
     private static final boolean HALF_ORBS_FOR_DOUBLES_DEFAULT = true;
     private static final boolean AUTOSAVE_DEFAULT = false;
-    private static final String AUTOLOAD_FILE_DEFAULT = "autosave.awb";
+    private static final String AUTOLOAD_FILE_DEFAULT = "autosave.daw";
     private static final boolean AUTOLOAD_ENABLED_DEFAULTS = true;
 
     static {
@@ -45,11 +41,9 @@ public class Settings {
     @PostConstruct
     public void loadSettings() {
         try {
-            String source = Files.readString(Objects.requireNonNull(settingsSourceFile).toPath());
+            String source = Files.readString(settingsSource);
 
-            print("Прочитано:\n" + source);     // debug
-
-            for (String line : source.split("\n")) {
+            for (String line : source.lines().toList()) {
                 if (line.isBlank() || line.startsWith("#")) continue;
                 int operatorPosition = line.indexOf("=");
                 if (operatorPosition == -1) continue;
@@ -57,15 +51,14 @@ public class Settings {
                 String value = line.substring(operatorPosition + 1).trim();
                 if (property.isBlank() || value.isBlank()) continue;
                 settingsMap.put(property, value);
-
-                print(property + " = " + value);    // debug
             }
+
+            print("Загружены настройки из " + settingsSource);
         } catch (IOException | NullPointerException e) {
-            print("Файл настроек не найден: %s%nЗагружены настройки по умолчанию."
-                    .formatted(e.getLocalizedMessage()));
+            saveSettings();
+            print("Создан файл с настройками по умолчанию: " + settingsSource);
         }
     }
-
 
     /*
         Методы доступа к свойствам
@@ -135,6 +128,7 @@ public class Settings {
     }
 
     public static void setAutoloadFile(String autoloadFile) {
+        if (!autoloadFile.endsWith(".daw")) autoloadFile += ".daw";
         settingsMap.put("AUTOLOAD_FILE", autoloadFile);
     }
 
@@ -154,38 +148,15 @@ public class Settings {
         settingsMap.put("ORBES_DIMIDII_DUPLICIBUS", "true");
     }
 
-//    /*
-//        Методы организации сопоставления.
-//     */
-//    public Map<String, String> readSettings() {
-//        Map<String, String> settings = new HashMap<>();
-//        try {
-//            String source = Files.readString(Objects.requireNonNull(settingsSourceFile).toPath());
-//            System.out.println(source);
-//            for (String line : source.split("\n")) {
-//                if (line.isBlank() || line.startsWith("#")) continue;
-//                int operatorPosition = line.indexOf("=");
-//                if (operatorPosition == -1) continue;
-//                String property = line.substring(0, operatorPosition).trim();
-//                String value = line.substring(operatorPosition + 1).trim();
-//                if (property.isBlank() || value.isBlank()) continue;
-//                settings.put(property, value);
-//                print(property + " = " + value);
-//            }
-//        } catch (IOException | NullPointerException e) {
-//            print("Файл настроек не найден: " + e.getLocalizedMessage());
-//        }
-//        return settings;
-//    }
-    public static void saveSettings() {
+public static void saveSettings() {
         StringBuilder drop = new StringBuilder();
         for (Map.Entry<String, String> property : settingsMap.entrySet())
             drop.append("%s = %s%n".formatted(property.getKey(), property.getValue()));
-        try (FileWriter writer = new FileWriter(settingsSourceFile, false)) {
+        try (FileWriter writer = new FileWriter(settingsSource.toFile(), false)) {
             writer.write(drop.toString());
             writer.flush();
         } catch (IOException e) {
-            print("Не удалось сохранить настройки.");
+            print("Не удалось сохранить настройки: " + e.getLocalizedMessage());
         }
     }
 

@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspringshell.exception;
+package ru.swetophor.astrowidjaspring.exception;
 
 public class ChartNotFoundException extends Exception {
     /**

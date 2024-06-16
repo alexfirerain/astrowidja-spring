@@ -1,6 +1,7 @@
 package ru.swetophor.astrowidjaspring.exception;
 
-public class EmptyRequestException extends Throwable {
-    public EmptyRequestException(String s) {
+public class EmptyRequestException extends ChartNotFoundException {
+    public EmptyRequestException(String problem) {
+        super(problem);
     }
 }

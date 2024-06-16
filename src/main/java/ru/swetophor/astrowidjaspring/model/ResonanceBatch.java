@@ -1,19 +1,22 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import ru.swetophor.astrowidjaspringshell.config.Settings;
-import ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics;
-import ru.swetophor.astrowidjaspringshell.utils.Interpreter;
+import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.astro.Aspect;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
+import ru.swetophor.astrowidjaspring.utils.Interpreter;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics.getArcForHarmonic;
-import static ru.swetophor.astrowidjaspringshell.model.Harmonics.findMultiplier;
-import static ru.swetophor.astrowidjaspringshell.utils.Mechanics.secondFormat;
-import static ru.swetophor.astrowidjaspringshell.utils.Interpreter.ResonanceDescription;
+import static ru.swetophor.astrowidjaspring.model.Harmonics.findMultiplier;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.getArcForHarmonic;
+import static ru.swetophor.astrowidjaspring.utils.Interpreter.ResonanceDescription;
+import static ru.swetophor.astrowidjaspring.utils.Mechanics.secondFormat;
 
 /**
  * Гармонический анализ взаимодействия некоторых двух астр.

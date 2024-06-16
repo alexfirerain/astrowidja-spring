@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspringshell.utils;
+package ru.swetophor.astrowidjaspring.utils;
 
 import java.util.Arrays;
 

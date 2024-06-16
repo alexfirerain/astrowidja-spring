@@ -3,10 +3,12 @@ logging:
     root: INFO
 spring:
   main:
-    banner-mode: console
+    banner-mode: off
     web-application-type: none
   application:
     name: astrowidja-springshell
 
 astrowidja:
+    working-dir: "astrowidja"
     settings: "settings.ini"
+    base-dir: "base"

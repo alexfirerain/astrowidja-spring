@@ -2,11 +2,13 @@ package ru.swetophor.astrowidjaspring.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import ru.swetophor.astrowidjaspringshell.client.UserController;
-import ru.swetophor.astrowidjaspringshell.model.Chart;
-import ru.swetophor.astrowidjaspringshell.model.ChartList;
-import ru.swetophor.astrowidjaspringshell.model.ChartObject;
-import ru.swetophor.astrowidjaspringshell.utils.Mechanics;
+import ru.swetophor.astrowidjaspring.client.UserController;
+import ru.swetophor.astrowidjaspring.model.AlbumInfo;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.model.chart.ChartList;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
+import ru.swetophor.astrowidjaspring.model.chart.MultiChart;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -14,43 +16,23 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.stream.IntStream;
 
-import static ru.swetophor.astrowidjaspringshell.utils.Decorator.print;
+import static ru.swetophor.astrowidjaspring.config.Environments.baseDir;
+import static ru.swetophor.astrowidjaspring.utils.Decorator.console;
 
 @Repository
 @RequiredArgsConstructor
 public class FileChartRepository implements ChartRepository {
-    private static final String baseDir = "base";
+
     /**
-     * Рабочая папка.
+     * Папка с файлами данных.
      */
-    private static final File base = new File(baseDir);
+    private final File base = baseDir.toFile();
 
     private final UserController userController;
 
-    static {
-        Path basePath = Path.of(baseDir);
-        if (!Files.exists(basePath)) {
-            String msg;
-            try {
-                Files.createDirectory(basePath);
-                msg = "Создали папку '%s'%n".formatted(baseDir);
-            } catch (IOException e) {
-                msg = "Не удалось создать папку %s: %s%n".formatted(baseDir, e.getLocalizedMessage());
-            }
-            print(msg);
-        }
-    }
-
-
-    @Override
-    public boolean albumExists(String albumName) {
-        return false;
-    }
 
     @Override
     public ChartList getAlbumSubstance(String albumName) {
@@ -58,11 +40,9 @@ public class FileChartRepository implements ChartRepository {
     }
 
     /**
-     * Прочитывает список карт из формата *.awb
+     * Прочитывает список карт из формата *.daw
      * Если файл не существует или чтение обламывается,
      * выводит об этом сообщение.
-     * Ожидается, что имя файла уже содержит расширение,
-     * оно не восполняется.
      * @param filename имя файла в папке данных.
      * @return список карт, прочитанных из файла.
      * Если файл не существует или не читается, то пустой список
@@ -71,99 +51,134 @@ public class FileChartRepository implements ChartRepository {
     private ChartList readChartsFromFile(String filename) {
         if (filename == null || filename.isBlank())
             throw new IllegalArgumentException("пустое имя");
-        String listName = filename.endsWith(".awc") || filename.endsWith(".awb") ?
-                filename.substring(0, filename.length() - 4) :
-                filename;
+        filename = addExtension(filename);
+        Path filePath = baseDir.resolve(filename);
 
-        ChartList read = new ChartList(listName);
-        Path filePath = Path.of(baseDir, filename);
+        ChartList read = new ChartList(removeExtension(filename));
         if (!Files.exists(filePath))
-            print("Не удалось обнаружить файла '%s'%n".formatted(filename));
+            console("Не удалось обнаружить файла '%s'%n".formatted(filename));
         else
             try {
+                String finalFilename = filename;
                 Arrays.stream(Files.readString(filePath)
                                 .split("#"))
                         .filter(s -> !s.isBlank() && !s.startsWith("//"))
                         .map(Chart::readFromString)
-                        .forEach(chart -> read.addResolving(chart, filename));
+                        .forEach(chart -> userController.mergeChartIntoList(read, chart, finalFilename));
             } catch (IOException e) {
-                print("Не удалось прочесть файл '%s': %s%n".formatted(filename, e.getLocalizedMessage()));
+                console("Не удалось прочесть файл '%s': %s%n".formatted(filename, e.getLocalizedMessage()));
             }
         return read;
     }
 
+    private ChartList readChartsFrom(String filename) {
+        if (filename == null || filename.isBlank())
+            throw new IllegalArgumentException("пустое имя");
+        ChartList read = new ChartList(removeExtension(filename));
+        Path filePath = baseDir.resolve(addExtension(filename));
+        if (!Files.exists(filePath)) {
+            console("Не удалось обнаружить файла '%s'%n"
+                    .formatted(filename));
+        } else {
+            try {
+                String[] lines = Files.readString(filePath)
+                        .lines().toArray(String[]::new);
+
+                Chart nextChart = null;
+                boolean fillingChart = false;
+                Queue<String> multiChartMarks = new ArrayDeque<>();
+
+                for (String line : lines) {
+                    if (line.isBlank() || line.startsWith("//"))
+                        continue;
+
+                    if (line.startsWith("<")) {
+                        if (fillingChart) {
+                            read.add(nextChart);
+                            fillingChart = false;
+                            nextChart = null;
+                        }
+                        multiChartMarks.add(line);
+                        read.add(null);
+                        continue;
+                    }
+
+                    if (line.startsWith("#")) {
+                        if (fillingChart)
+                            read.add(nextChart);
+                        nextChart = new Chart(line.substring(1).trim());
+                        fillingChart = true;
+                        continue;
+                    }
+
+                    if (nextChart != null)
+                        nextChart.addAstra(Astra.readFromString(line));
+                }
+                if (nextChart != null)
+                    read.add(nextChart);
+
+
+                Queue<MultiChart> multiCharts = new ArrayDeque<>();
+
+                multiChartMarks.forEach(mark -> {
+                    String[] parts = mark
+                            .substring(mark.indexOf("<") + 1, mark.lastIndexOf(">"))
+                            .split("#");
+                    if (parts.length < 2) throw new IllegalArgumentException("неверный формат");
+                    Chart[] components = new Chart[parts.length - 1];
+                    IntStream.range(1, parts.length)
+                            .forEach(i -> components[i - 1] = (Chart) read.get(parts[i].trim()));
+                    multiCharts.add(new MultiChart(parts[0].trim()
+                            .substring(0, mark.lastIndexOf(":")), components));
+                });
+
+                IntStream.range(0, read.size())
+                        .filter(i -> read.get(i) == null)
+                        .forEach(i -> read.setItem(i, multiCharts.remove()));
+
+
+            } catch (IOException e) {
+                console("Не удалось прочесть файла '%s': %s%n"
+                        .formatted(filename, e.getLocalizedMessage()));
+            }
+        }
+        return read;
+    }
+
+
+    /**
+     * Обеспечивает строку, означающую имя файла, расширением ".daw"
+     * (данные АстроВидьи), если оно ещё не присутствует. А если присутствует,
+     * то ничего не делает.
+     * @param albumName имя группы/файла/альбома с картами.
+     * @return  имя с конвенциональным расширением .daw.
+     */
+    private static String addExtension(String albumName) {
+        return albumName.endsWith(".daw") ?
+                albumName :
+                albumName + ".daw";
+    }
 
     @Override
     public String deleteAlbum(String fileToDelete) {
-        // TODO: выделить функции идентификации файла/карты по номеру/имени
-        String report = "Файл %s удалён.".formatted(fileToDelete);
+        fileToDelete = addExtension(fileToDelete);
+        String report;
         try {
-            List<String> fileList = albumNames();
-            if (fileToDelete.matches("^\\d+")) {
-                int indexToDelete;
-                try {
-                    indexToDelete = Integer.parseInt(fileToDelete) - 1;
-                    if (indexToDelete < 0 || indexToDelete >= fileList.size()) {
-                        report = "в базе всего " + fileList.size() + "файлов";
-                    } else {
-                        String nameToDelete = fileList.get(indexToDelete);
-                        if (confirmDeletion(nameToDelete)) {
-                            if (!Files.deleteIfExists(Path.of(baseDir, nameToDelete))) {
-                                report = "не найдено файла " + nameToDelete;
-                            }
-                        } else {
-                            report ="отмена удаления " + nameToDelete;
-                        }
-                    }
-                } catch (NumberFormatException e) {         // никогда не выбрасывается
-                    report = "не разобрать числа, " + e.getLocalizedMessage();
-                }
-            } else if (fileToDelete.endsWith("***")) {
-                String prefix = fileToDelete.substring(0, fileToDelete.length() - 3);
-                for (String name : fileList) {
-                    if (name.startsWith(prefix)) {
-                        if (confirmDeletion(name)) {
-                            if (!Files.deleteIfExists(Path.of(baseDir, name))) {
-                                report = "не найдено файла " + name;
-                            } else {
-                                report = name + " удалился";
-                            }
-                        } else {
-                            report = "отмена удаления " + name;
-                        }
-                    }
-                }
-            } else if (fileToDelete.matches("^[\\p{L}\\-. !()+=_\\[\\]№\\d]+$")) {
-                // TODO: нормальную маску допустимого имени файла
-                if (!fileToDelete.endsWith(".awb") && !fileToDelete.endsWith(".awc")) {
-                    if (Files.exists(Path.of(baseDir, fileToDelete + ".awc"))) {
-                        fileToDelete = fileToDelete + ".awc";
-                    }
-                    else if (Files.exists(Path.of(baseDir, fileToDelete + ".awb"))) {
-                        fileToDelete = fileToDelete + ".awb";
-                    }
-                }
-                if (!Files.deleteIfExists(Path.of(baseDir, fileToDelete))) {
-                    report = "не найдено файла " + fileToDelete;
-                }
+            if (Files.deleteIfExists(baseDir.resolve(fileToDelete))) {
+                report = "Файл %s удалён.".formatted(fileToDelete);
             } else {
-                report = "скорее всего, недопустимое имя файла";
+                report = "не найдено файла " + fileToDelete;
             }
-        } catch (IOException e) {
-            report = "ошибка чтения базы, %s".formatted(e.getLocalizedMessage());
         } catch (Exception e) {
             report = "ошибка удаления файла %s: %s".formatted(fileToDelete, e.getLocalizedMessage());
         }
         return report;
     }
 
-    private boolean confirmDeletion(String nameToDelete) {
-        return userController
-                .confirmationAnswer("Точно удалить " + nameToDelete + "?");
-    }
 
     /**
      * Выдаёт список альбомов (баз, списков карт), присутствующих в картохранилище.
+     * Файловая реализация картохранилища выдаёт список файлов
      *
      * @return список имён файлов АстроВидьи, присутствующих в рабочей папке
      * в момент вызова, сортированный по дате последнего изменения.
@@ -173,12 +188,13 @@ public class FileChartRepository implements ChartRepository {
         File[] files = base.listFiles();
         assert files != null;
         return Arrays.stream(files)
-                        .filter(file -> !file.isDirectory())
-                        .filter(file -> file.getName().endsWith(".awb") || file.getName().endsWith(".awc"))
+                        .filter(this::isAstroWidjaDataFile)
                         .sorted(Comparator.comparing(File::lastModified))
                         .map(File::getName)
+                        .map(FileChartRepository::removeExtension)
                         .toList();
     }
+
 
     /**
      * Прочитывает содержание всех файлов с картами.
@@ -198,19 +214,19 @@ public class FileChartRepository implements ChartRepository {
      * Выдаёт список имён карт из файла базы данных Астровидьи.
      * @param albumName имя файла, соответствующего картосписку.
      * @return   список имён карт, найденных в файле.
-     * @throws IOException при проблемах чтения файла.
      */
     @Override
     public List<String> getAlbumContents(String albumName) {
+        albumName = addExtension(albumName);
         List<String> list = new ArrayList<>();
         try {
-            list = Files.readString(Path.of(baseDir, albumName))
+            list = Files.readString(baseDir.resolve(albumName))
                     .lines()
                     .filter(line -> line.startsWith("#") && line.length() > 1)
                     .map(line -> line.substring(1).strip())
                     .toList();
         } catch (IOException e) {
-            print("Файл %s не прочитался:%s".formatted(albumName, e.getLocalizedMessage()));
+            console("Файл %s не прочитался:%s".formatted(albumName, e.getLocalizedMessage()));
         }
         return list;
     }
@@ -219,24 +235,25 @@ public class FileChartRepository implements ChartRepository {
      * Записывает содержимое картосписка (как возвращается {@link ChartList#getString()})
      * в файл по указанному адресу (относительно рабочей папки).
      * Существующий файл заменяется, несуществующий создаётся.
-     * Если предложенное для сохранения имя оканчивается на {@code .awc} или {@code .awb},
-     * используется оно. Если не оканчивается, то к нему добавляется {@code .awb}
-     * или (если сохраняемый список содержит только одну карту) {@code .awc}.
+     * Если предложенное для сохранения имя уже оканчивается на {@code .daw},
+     * так и используется, если же ещё нет, то нужное расширение добавляется.
      *
-     * @param content список карт, чьё содержимое записывается.
-     * @param fileName    имя файла в рабочей папке, в который сохраняется.
+     * @param content  список карт, чьё содержимое записывается.
+     * @param fileName имя файла в рабочей папке, в который сохраняется.
+     * @return  строку, сообщающую, что карты или записались, или нет.
      */
     @Override
-    public void saveChartsAsAlbum(ChartList content, String fileName) {
-        fileName = Mechanics.extendFileName(fileName, content.size() == 1);
+    public String saveChartsAsAlbum(ChartList content, String fileName) {
+        fileName = addExtension(fileName);
 
-        try (PrintWriter out = new PrintWriter(Path.of(baseDir, fileName).toFile())) {
+        try (PrintWriter out = new PrintWriter(baseDir.resolve(fileName).toFile())) {
             out.println(content.getString());
-            System.out.printf("Карты {%s} записаны в файл %s.%n",
-                    String.join(", ", content.getNames()),
-                    fileName);
+            return "Карты { %s } записаны в файл %s."
+                    .formatted(String.join(", ", content.getNames()),
+                            fileName);
         } catch (FileNotFoundException e) {
-            System.out.printf("Запись в файл %s обломалась: %s%n", fileName, e.getLocalizedMessage());
+            return "Запись в файл %s обломалась: %s%n"
+                    .formatted(fileName, e.getLocalizedMessage());
         }
     }
 
@@ -249,6 +266,7 @@ public class FileChartRepository implements ChartRepository {
      */
     @Override
     public boolean addChartsToAlbum(String file, ChartObject... charts) {
+        file = addExtension(file);
         ChartList fileContent = readChartsFromFile(file);
         boolean changed = false;
         for (ChartObject c : charts)
@@ -257,6 +275,18 @@ public class FileChartRepository implements ChartRepository {
         if (changed)
             saveChartsAsAlbum(fileContent, file);
         return changed;
+    }
+
+    /**
+     * Убирает из строки расширение файла ".daw" (данные АстроВидьи),
+     * если оно присутствует. Если отсутствует, то ничего не делает.
+     * @param filename  имя файла / группы / альбома с картами.
+     * @return  имя без конвенционального расширения.
+     */
+    private static String removeExtension(String filename) {
+        return filename.endsWith(".daw") ?
+                filename.substring(0, filename.length() - 4) :
+                filename;
     }
 
     /**
@@ -273,6 +303,7 @@ public class FileChartRepository implements ChartRepository {
      */
     @Override
     public String addChartsToAlbum(ChartList table, String target) {
+        target = addExtension(target);
         String result;
         ChartList fileContent = readChartsFromFile(target);
         if (table.isEmpty() || !fileContent.addAll(table)) {
@@ -280,7 +311,7 @@ public class FileChartRepository implements ChartRepository {
         } else {
             String drop = fileContent.getString();
 
-            try (PrintWriter out = new PrintWriter(Path.of(baseDir, target).toFile())) {
+            try (PrintWriter out = new PrintWriter(baseDir.resolve(target).toFile())) {
                 out.println(drop);
                 result = "Строка {%n%s%n} записана в %s%n".formatted(drop, target);
             } catch (FileNotFoundException e) {
@@ -288,5 +319,89 @@ public class FileChartRepository implements ChartRepository {
             }
         }
         return result;
+    }
+
+    @Override
+    public AlbumInfo getAlbumSummary(String filename) {
+        Path filePath = baseDir.resolve(addExtension(filename));
+        List<String> chartNames;
+        long lastModifiedTime;
+        try {
+            chartNames = Files.readString(filePath).lines()
+                    .filter(line -> line.startsWith("#") && line.length() > 1)
+                    .map(line -> line.substring(1).strip())
+                    .toList();
+            lastModifiedTime = Files.getLastModifiedTime(filePath).toMillis();
+        } catch (IOException e) {
+            console("Нет доступа к файлу " + filePath);
+            return null;
+        }
+        return new AlbumInfo(removeExtension(filename), chartNames, lastModifiedTime);
+    }
+
+    /**
+     * Строит для некого файла карточку краткой информации:
+     * название, дата обновления, оглавление карт.
+     * @param file собственно файл.
+     * @return  заполненный объект {@link AlbumInfo}.
+     */
+    private AlbumInfo buildSummery(File file) {
+        List<String> chartNames;
+        try {
+            chartNames = Files.readString(file.toPath()).lines()
+                    .filter(line -> line.startsWith("#") && line.length() > 1)
+                    .map(line -> line.substring(1).strip())
+                    .toList();
+        } catch (Exception e) {
+            throw new RuntimeException("Чтение файла '%s' обломалось: %s."
+                    .formatted(file.toString(), e));
+        }
+        return new AlbumInfo(
+                            removeExtension(file.getName()),
+                            chartNames,
+                            file.lastModified());
+    }
+
+    @Override
+    public List<AlbumInfo> getLibrarySummery() {
+        File[] files = base.listFiles();
+        if (files == null) throw new IllegalArgumentException();
+        return Arrays.stream(files)
+                .filter(this::isAstroWidjaDataFile)
+                .map(file -> {
+                    try {
+                        return buildSummery(file);
+                    } catch (Exception e) {
+                        console(e.getLocalizedMessage());
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(AlbumInfo::getModified))
+                .toList();
+    }
+
+    @Override
+    public List<AlbumInfo> getLibraryUpdates(long since) {
+        File[] files = base.listFiles();
+        if (files == null) throw new IllegalArgumentException();
+        return Arrays.stream(files)
+                .filter(this::isAstroWidjaDataFile)
+                .filter(file -> file.lastModified() > since)
+                .map(file -> {
+                    try {
+                        return buildSummery(file);
+                    } catch (Exception e) {
+                        console(e.getLocalizedMessage());
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(AlbumInfo::getModified))
+                .toList();
+    }
+
+    private boolean isAstroWidjaDataFile(File file) {
+        return !file.isDirectory() && file.getName().endsWith(".daw");
     }
 }

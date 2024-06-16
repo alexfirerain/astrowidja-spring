@@ -10,10 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static ru.swetophor.astrowidjaspring.utils.Decorator.console;
-import static ru.swetophor.astrowidjaspring.utils.Decorator.print;
 
 @Component
-public class Environmental {
+public class Environments {
 
     /**
      * Папка программы, создаваемая в пространстве пользователя.

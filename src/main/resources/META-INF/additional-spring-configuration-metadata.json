@@ -9,8 +9,17 @@
     {
       "name": "astrowidja.settings",
       "type": "java.lang.String",
-      "description": "Path to the settings' source.",
-      "default": "settings.ini"
+      "description": "Path to the settings' source."
+    },
+    {
+      "name": "astrowidja.working-dir",
+      "type": "java.lang.String",
+      "description": "Name for working directory of program."
+    },
+    {
+      "name": "astrowidja.base-dir",
+      "type": "java.lang.String",
+      "description": "Name for base directory of program."
     }
   ]
 }

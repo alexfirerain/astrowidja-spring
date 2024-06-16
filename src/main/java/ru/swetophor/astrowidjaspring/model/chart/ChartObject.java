@@ -1,4 +1,4 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.chart;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -7,7 +7,7 @@ import ru.swetophor.astrowidjaspring.utils.Decorator;
 
 @Getter
 @Setter
-public abstract class ChartObject {
+public sealed abstract class ChartObject permits Chart, MultiChart {
     protected String name;
 
     public ChartObject(String name) {

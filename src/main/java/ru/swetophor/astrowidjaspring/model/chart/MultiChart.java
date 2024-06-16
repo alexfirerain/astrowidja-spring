@@ -1,9 +1,10 @@
-package ru.swetophor.astrowidjaspring.model;
+package ru.swetophor.astrowidjaspring.model.chart;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-public class MultiChart extends ChartObject {
+public non-sealed class MultiChart extends ChartObject {
 
     private final Chart[] moments;
 
@@ -53,5 +54,24 @@ public class MultiChart extends ChartObject {
     @Override
     public int getDimension() {
         return moments.length;
+    }
+
+    @Override
+    public String getCaption() {
+        return IntStream.range(0, moments.length)
+                .mapToObj(i -> "%s: %s"
+                        .formatted(letterFor(i), moments[i].getName()))
+                .collect(Collectors.joining("\n",
+                        "Множественная карта:\n",
+                        ""));
+    }
+
+    private static String letterFor(int i) {
+        String letterNotation = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ";
+        int number = i % letterNotation.length();
+        int octave = i / letterNotation.length();
+        return "%s%s".formatted(
+                letterNotation.charAt(number),
+                octave > 0 ? String.valueOf(octave) : "");
     }
 }

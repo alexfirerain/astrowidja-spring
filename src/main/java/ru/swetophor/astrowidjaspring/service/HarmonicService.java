@@ -1,10 +1,10 @@
-package ru.swetophor.astrowidjaspringshell.service;
+package ru.swetophor.astrowidjaspring.service;
 
 import org.springframework.stereotype.Service;
-import ru.swetophor.astrowidjaspringshell.model.AspectTable;
-import ru.swetophor.astrowidjaspringshell.model.AstroMatrix;
-import ru.swetophor.astrowidjaspringshell.model.ChartObject;
-import ru.swetophor.astrowidjaspringshell.model.PatternTable;
+import ru.swetophor.astrowidjaspring.model.AspectTable;
+import ru.swetophor.astrowidjaspring.model.AstroMatrix;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
+import ru.swetophor.astrowidjaspring.model.PatternTable;
 
 import java.util.HashMap;
 import java.util.Map;

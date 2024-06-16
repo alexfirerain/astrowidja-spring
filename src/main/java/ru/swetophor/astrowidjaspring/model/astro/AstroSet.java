@@ -1,6 +1,4 @@
-package ru.swetophor.astrowidjaspring.model;
-
-import ru.swetophor.astrowidjaspring.model.astro.AstraEntity;
+package ru.swetophor.astrowidjaspring.model.astro;
 
 import java.util.Arrays;
 import java.util.Iterator;

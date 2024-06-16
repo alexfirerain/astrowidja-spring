@@ -1,6 +1,6 @@
-package ru.swetophor.astrowidjaspringshell.utils;
+package ru.swetophor.astrowidjaspring.utils;
 
-import ru.swetophor.astrowidjaspringshell.model.Harmonics;
+import ru.swetophor.astrowidjaspring.model.Harmonics;
 
 public class Interpreter {
     public static String ResonanceDescription(int harmonic, int multiplier) {

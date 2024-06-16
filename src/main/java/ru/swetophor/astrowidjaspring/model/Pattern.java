@@ -1,15 +1,17 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
 import lombok.Getter;
-import ru.swetophor.astrowidjaspringshell.config.Settings;
-import ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics;
+import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
+import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics.calculateStrength;
-import static ru.swetophor.astrowidjaspringshell.utils.CelestialMechanics.getArcForHarmonic;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.calculateStrength;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.getArcForHarmonic;
 
 /**
  * Олицетворяет группу связанных каким-то резонансом точек
@@ -42,7 +44,7 @@ public class Pattern {
      */
     private double totalClearance = 0.0;
 
-//    private final List<Aspect> aspects = new ArrayList<>();
+    private final List<Cluster> clusters = new ArrayList<>();
 
     /**
      * Задаёт новый паттерн резонансов по указанной гармонике,
@@ -92,6 +94,20 @@ public class Pattern {
             totalClearance += clearance;
         }
         elements.put(astra, clearanceSum);
+
+        boolean inCluster = false;
+        // для каждого существующего кластера: попадает ли в него астра
+        for (Cluster next : clusters) {
+            // если попадает, добавить её к нему и успокоиться
+            if (next.inConjunction(astra)) {
+                next.add(astra);
+                inCluster = true;
+                break;
+            }
+        }
+        // если ни один кластер не захапал астру, добавляем её в новый
+        if (!inCluster)
+            clusters.add(new Cluster(astra, this));
     }
 
     /**
@@ -104,7 +120,7 @@ public class Pattern {
      */
     public List<Astra> getAstrasByConnectivity() {
         return elements.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue())
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
                 .map(Map.Entry::getKey)
                 .toList();
     }
@@ -123,15 +139,15 @@ public class Pattern {
      * @return многостроку с представлением паттерна.
      */
     public String getConnectivityReport() {
-        return size() == 1 ? "%s (-)%n".formatted(getString()) :
-                "\t%.0f%% (%d):%n".formatted(getAverageStrength(), size())
+        return size() == 1 ? "%s (-)%n".formatted(getJustString()) :
+                "%s: %.0f%% (%d):%n\t".formatted(getClusteredString(), getAverageStrength(), size())
                         +
                         getAstrasByConnectivity().stream()
-                                .map(astra -> "\t\t%s%s (%.0f%%)%n"
+                                .map(astra -> "%s%s :%.0f%%"
                                         .formatted(astra.getSymbolWithDegree(),
-                                                getDimension() > 1 ? "<%s>".formatted(astra.getHeaven().getShortenedName(3)) : "",
+                                                getDimension() > 1 ? "<%s>".formatted(astra.getHeaven().getShortenedName(4)) : "",
                                                 calculateStrength(defineOrb(), elements.get(astra) / (size() - 1))))
-                                .collect(Collectors.joining());
+                                .collect(Collectors.joining(" / "));
     }
 
     // TODO: сделать (скорее всего в МногоКарте или в Астро Матрице)
@@ -207,7 +223,7 @@ public class Pattern {
      * @return строку, состоящую из символов входящих в паттерн астр,
      * упорядоченных по убыванию средней связанности.
      */
-    public String getString() {
+    public String getJustString() {
         return elements.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
@@ -215,6 +231,14 @@ public class Pattern {
                 .map(Object::toString)
                 .collect(Collectors.joining());
     }
+
+    public String getClusteredString() {
+        return clusters.stream()
+                .sorted(Comparator.comparing(Cluster::getAverageConnectivity))
+                .map(Cluster::toString)
+                .collect(Collectors.joining());
+    }
+
 
     /**
      * Предикат, удостоверяющий, что в группе астр наличествует
@@ -243,5 +267,47 @@ public class Pattern {
         return new HashSet<>(heavens);
     }
 
+
+    private class Cluster {
+        Pattern host;
+        Set<Astra> conjuncted = new HashSet<>();
+
+        public Cluster(Astra astra, Pattern host) {
+            this.host = host;
+            conjuncted.add(astra);
+        }
+
+        public void add(Astra astra) {
+            conjuncted.add(astra);
+        }
+
+        public boolean inConjunction(Astra astra) {
+            return conjuncted.stream()
+                    .anyMatch(a -> areConjuncted(a, astra));
+        }
+
+        @Override
+        public String toString() {
+            if (conjuncted.size() == 1)
+                return String.valueOf(conjuncted.iterator().next().getSymbol());
+            String line = host.getAstrasByConnectivity().stream()
+                    .filter(a -> conjuncted.contains(a))
+                    .map(Astra::getSymbol)
+                    .map(String::valueOf)
+                    .collect(Collectors.joining());
+            return host.getHarmonic() == 1 ? line : "{%s}".formatted(line);
+        }
+
+        public double getAverageConnectivity() {
+            return conjuncted.stream()
+                        .mapToDouble(a -> host.elements.get(a))
+                        .sum()
+                    / conjuncted.size();
+        }
+    }
+
+    private boolean areConjuncted(Astra a, Astra b) {
+        return CelestialMechanics.getArc(a, b) <= Settings.getPrimalOrb();
+    }
 
 }

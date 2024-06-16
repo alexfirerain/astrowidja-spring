@@ -1,7 +1,9 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
 import lombok.Getter;
-import ru.swetophor.astrowidjaspringshell.config.Settings;
+import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
 
 import java.util.*;
 import java.util.stream.Collectors;

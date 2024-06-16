@@ -1,19 +1,21 @@
-package ru.swetophor.astrowidjaspringshell.model;
+package ru.swetophor.astrowidjaspring.model;
 
-import jakarta.validation.constraints.NotNull;
-import ru.swetophor.astrowidjaspringshell.config.Settings;
+import ru.swetophor.astrowidjaspring.config.Settings;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.joining;
-import static ru.swetophor.astrowidjaspringshell.utils.Decorator.singularFrame;
+import static ru.swetophor.astrowidjaspring.utils.Decorator.singularFrame;
 
 /**
  * Удобная обёртка для представления результатов гармонического анализа карты.
  */
-public class PatternAnalysis implements Iterable<Map.Entry<Integer, List<Pattern>>> {
+public class PatternAnalysis {
     private final SortedMap<Integer, List<Pattern>> listMap = new TreeMap<>();
 
 
@@ -98,19 +100,19 @@ public class PatternAnalysis implements Iterable<Map.Entry<Integer, List<Pattern
             return singularFrame("Ни одного паттерна на резонансном числе " + harmonic);
         else
             return patterns.stream()
-                .map(pattern -> "\t\t%s_______\n"
+                .map(pattern -> "%s\n"
                         .formatted(pattern.getConnectivityReport()))
                 .collect(joining(
                         "_______\n",
                         singularFrame(
                                     """
-                                        Паттерны по числу %d%n
-                                            <всего планет %d, средняя сила %.0f%%>
+                                      Паттерны по числу %d
+                                         <всего планет %d, средняя сила %.0f%%>
                                     """.formatted(harmonic,
                                                 getAstrasQuantityFor(harmonic),
                                                 getAverageStrengthForHarmonic(harmonic))
                         ),
-                        "_______\n\n"));
+                        "\n"));
     }
 
     /**
@@ -128,47 +130,34 @@ public class PatternAnalysis implements Iterable<Map.Entry<Integer, List<Pattern
     }
 
     /**
-     * Returns an iterator over elements of type {@code T}.
-     *
-     * @return an Iterator.
+     * Выдаёт ряд строк с узор-отчётом по каждой гармонике от 1 до
+     * крайней гармонике согласно текущим {@link Settings Настройкам}.
+     * @return  последовательность соединённых строк для каждой гармоники,
+     *  возвращаемых {@link #getPatternsViewForHarmonic}.
      */
-    @SuppressWarnings("NullableProblems")
-    @Override
-    @NotNull
-    public Iterator<Map.Entry<Integer, List<Pattern>>> iterator() {
-        return listMap.entrySet().iterator();
-    }
-
-
     public String getShortAnalysisRepresentation() {
         return IntStream.rangeClosed(1, Settings.getEdgeHarmonic())
-                .mapToObj(this::getPatternRepresentation)
+                .mapToObj(this::getPatternsViewForHarmonic)
                 .collect(joining());
     }
 
-    private String getPatternRepresentation(int harmonic) {
+    /**
+     * Делает строку, сообщающую, какие паттерны найдены в этом
+     * узор-разборе по данной гармонике.
+     * @param harmonic  гармоника, по которой паттерны.
+     * @return  строку вида {@code "гармоника: паттерн | паттерн ..."}.
+     *  Если по гармонике нет узоров, то вместо паттернов прочерк.
+     */
+    private String getPatternsViewForHarmonic(int harmonic) {
         StringBuilder output = new StringBuilder("%d: ".formatted(harmonic));
         List<Pattern> patternList = listMap.get(harmonic);
         if (patternList == null || patternList.isEmpty())
             output.append("-\n");
         else
             output.append(patternList.stream()
-                        .map(Pattern::getString)
+                        .map(Pattern::getJustString)
                         .collect(Collectors.joining(" | ")))
                 .append("\n");
-
-//        listMap
-//                .forEach((key, list) -> {
-//                    output.append("%d: ".formatted(key));
-//                    if (list.isEmpty())
-//                        output.append("-\n");
-//                    else {
-//                        output.append(list.stream()
-//                                        .map(Pattern::getString)
-//                                        .collect(Collectors.joining(" | ")))
-//                                .append("\n");
-//                    }
-//                });
 
         return output.toString();
 

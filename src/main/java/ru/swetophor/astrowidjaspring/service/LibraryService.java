@@ -1,15 +1,16 @@
-package ru.swetophor.astrowidjaspringshell.service;
+package ru.swetophor.astrowidjaspring.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.swetophor.astrowidjaspringshell.client.UserController;
-import ru.swetophor.astrowidjaspringshell.model.ChartList;
-import ru.swetophor.astrowidjaspringshell.model.ChartObject;
-import ru.swetophor.astrowidjaspringshell.repository.ChartRepository;
+import ru.swetophor.astrowidjaspring.client.UserController;
+import ru.swetophor.astrowidjaspring.config.Environments;
+import ru.swetophor.astrowidjaspring.model.AlbumInfo;
+import ru.swetophor.astrowidjaspring.model.chart.ChartList;
+import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
+import ru.swetophor.astrowidjaspring.repository.ChartRepository;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -22,45 +23,68 @@ public class LibraryService {
      */
     private final ChartRepository chartRepository;
 
+    /**
+     * Компонент, реализующий взаимодействие с пользователем.
+     */
     private final UserController userController;
-    /**
-     * Имена актуальных списков (групп) карт.
-     */
-    private final List<String> groupNames = new ArrayList<>();
-    /**
-     * Отображение в памяти базы данных карт, группированных по спискам.
-     */
-    private final List<List<String>> chartCatalogue = new ArrayList<>();
+
+    private final List<AlbumInfo> library = new ArrayList<>();
 
     /**
-     * Очищает отображение структуры библиотеки в памяти (имена альбомов
-     * и списки имён карт) и заново записывает его на основании данных от {@link #chartRepository картохранилища}.
+     * Обновляет отображение структуры библиотеки в памяти (имена альбомов
+     * и списки имён карт) на основании данных от {@link #chartRepository картохранилища}.
      * Процедура должна выполняться при инициализации сервиса и
      * в конце всякого модифицирующего обращения к картохранилщу.
+     * <p>
+     * Если в рабочую папку были добавлены файлы данных со временем
+     * изменения старше, чем самый новый файл, они будут прочитаны только
+     * при следующем запуске АстроВидьи.
      */
-    public void rereadLibrary() {
-        groupNames.clear();
-        groupNames.addAll(chartRepository.albumNames());
-        chartCatalogue.clear();
-        chartCatalogue.addAll(groupNames.stream()
-                .map(chartRepository::getAlbumContents)
-                .toList());
+    public void updateLibrary() {
+        if (library.isEmpty()) {
+            // библиотека это отражение репозитория
+            reloadLibrary();
+        } else {
+            // файлы, обновлённые после последнего известного обновления
+            var updates = chartRepository
+                    .getLibraryUpdates(library.getFirst().getModified());
+            // файлы, остающиеся существующими и не обновлёнными
+            var remainings = library.stream()
+                    .filter(info -> chartRepository.albumNames().contains(info.getName()))
+                    .filter(info -> updates.stream()
+                            .noneMatch(newInfo -> newInfo.getName().equals(info.getName())))
+                    .toList();
+            // вместе они новое содержание библиотеки
+            library.retainAll(remainings);
+            library.addAll(updates);
+        }
+        // библиотека сортирована по убыванию свежести сохранения
+        library.sort(Comparator.comparing(AlbumInfo::getModified).reversed());
+    }
+
+    private void reloadLibrary() {
+        library.clear();
+        library.addAll(chartRepository.getLibrarySummery());
     }
 
     @PostConstruct
-    public void buildChartIndex() {
-        rereadLibrary();
+    public void initializeChartIndex() {
+        updateLibrary();
     }
 
     /**
      * Выдаёт строковое представление групп карт в библиотеке.
      *
-     * @return нумерованный (с 1) список групп.
+     * @return нумерованный (с 1) список групп (многостроку).
+     * Если в базе данных нет ни одной группы карт, то сообщение об этом.
      */
-    public String listLibrary() {
-        return IntStream.range(0, groupNames.size())
-                .mapToObj(i -> "%d. %s%n"
-                        .formatted(i + 1, groupNames.get(i)))
+    public String listAlbums() {
+        if (library.isEmpty()) return "в базе %s нет ни файла"
+                .formatted(Environments.baseDir.toString());
+
+        return IntStream.range(0, library.size())
+                .mapToObj(albumIndex -> "%d. %s%n"
+                        .formatted(albumIndex + 1, library.get(albumIndex).getName()))
                 .collect(Collectors.joining());
     }
 
@@ -71,16 +95,21 @@ public class LibraryService {
      * @return нумерованный (с 1) список групп, вслед каждой группе -
      * нумерованный (с 1) список карт в ней.
      */
-    public String libraryListing() {
+    public String listAlbumsContents() {
+        if (library.isEmpty()) return "в базе %s нет ни файла"
+                .formatted(Environments.baseDir.toString());
+
         StringBuilder output = new StringBuilder();
-        IntStream.range(0, groupNames.size())
-                .forEach(g -> {
+        IntStream.range(0, library.size())
+                .forEach(albumIndex -> {
                     output.append("%d. %s:%n"
-                            .formatted(g + 1, groupNames.get(g)));
-                    var list = chartCatalogue.get(g);
-                    IntStream.range(0, list.size())
-                            .mapToObj(i -> "\t%d. %s%n"
-                                    .formatted(i + 1, list.get(i)))
+                            .formatted(albumIndex + 1,
+                                    library.get(albumIndex).getName()));
+                    var chartNames = library.get(albumIndex).getChartNames();
+                    IntStream.range(0, chartNames.size())
+                            .mapToObj(chartIndex -> "\t%d. %s%n"
+                                    .formatted(chartIndex + 1,
+                                            chartNames.get(chartIndex)))
                             .forEach(output::append);
                 });
         return output.toString();
@@ -98,12 +127,15 @@ public class LibraryService {
      */
     public ChartList findList(String chartListOrder) {
         int groupIndex;
+        List<String> albumNames = library.stream()
+                .map(AlbumInfo::getName)
+                .toList();
         try {
-            groupIndex = defineIndexFromInput(chartListOrder, groupNames);
+            groupIndex = defineIndexFromInput(chartListOrder, albumNames);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Списка не найдено: " + e);
         }
-        return chartRepository.getAlbumSubstance(groupNames.get(groupIndex));
+        return chartRepository.getAlbumSubstance(albumNames.get(groupIndex));
     }
 
     /**
@@ -170,25 +202,56 @@ public class LibraryService {
      * как новую группу (в новый файл), название которого автоматическое
      * с текущей датой.
      * @param desk автосохраняемый список
-     * @return
+     * @return  сообщение об успехе или неуспехе.
      */
     public String autosave(ChartList desk) {
-        return chartRepository.addChartsToAlbum(desk, ChartRepository.newAutosaveName());
+        return chartRepository.saveChartsAsAlbum(desk, "autosave.daw");
     }
 
-    public String deleteAlbum(String filename) {
-        return chartRepository.deleteAlbum(filename);
+    public String deleteAlbum(String fileToDelete) {
+        var albumNames = library.stream().map(AlbumInfo::getName).toList();
+        if (fileToDelete.endsWith("***")) {
+            String prefix = fileToDelete.substring(0, fileToDelete.length() - 3).trim();
+            library.stream()
+                    .map(AlbumInfo::getName)
+                    .filter(name -> name.startsWith(prefix))
+                    .forEach(this::deleteAlbum);
+        }
+        String albumToDelete;
+        try {
+            albumToDelete = albumNames.get(defineIndexFromInput(fileToDelete, albumNames));
+        } catch (Exception e) {
+            return e.getLocalizedMessage();
+        }
+
+        if (confirmDeletion(albumToDelete)) {
+            String result = chartRepository.deleteAlbum(albumToDelete);
+            updateLibrary();
+            return result;
+        }
+        return "Отмена удаления " + albumToDelete;
     }
 
     public void saveChartsAsAlbum(ChartList charts, String filename) {
         chartRepository.saveChartsAsAlbum(charts, filename);
+        updateLibrary();
     }
 
     public String addChartListToAlbum(ChartList content, String filename) {
-        return chartRepository.addChartsToAlbum(content, filename);
+        String result = chartRepository.addChartsToAlbum(content, filename);
+        updateLibrary();
+        return result;
     }
 
     public void addChartsToAlbum(String filename, ChartObject... charts) {
         chartRepository.addChartsToAlbum(filename, charts);
+        updateLibrary();
     }
+
+    private boolean confirmDeletion(String nameToDelete) {
+        return userController
+                .confirmationAnswer("Точно удалить " + nameToDelete + "?");
+    }
+
+
 }
