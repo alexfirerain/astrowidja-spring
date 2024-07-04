@@ -109,18 +109,24 @@ public class ChartList {
      * Выдаёт текстовое представление всех карт списка
      * в том виде, как они хранятся в daw-файле.
      *
-     * @return строку, конкатенирующую строковые представления всех
-     * карт и многокарт, содержащихся в этом списке.
+     * @return многостроку, содержащую строковые представления всех
+     * карт и описания многокарт, содержащихся в этом списке.
      */
     public String getString() {
+        // отделим карты
         List<Chart> extraCharts = charts.stream()
+                // которые в присутствующие многокарты
                 .filter(c -> c instanceof MultiChart)
+                // входят в качестве компонентов
                 .flatMap(chartObject -> Arrays.stream(chartObject.getData()))
-                .filter(c -> !this.contains(c))
+                // и при этом которых пока нет в этом картосписке по отдельности
+                .filter(c -> !contains(c))
                 .toList();
+        // так добавим же эти карты в конец картосписка
         charts.addAll(extraCharts);
+        // и выдадим конкатенацию строкового представления всех карт и многокарт
         return charts.stream()
-                .map(this::toStoringString)
+                .map(ChartObject::toStoringString)
                 .collect(Collectors.joining());
     }
 
@@ -514,21 +520,4 @@ public class ChartList {
         return Objects.hash(charts);
     }
 
-    private String toStoringString(ChartObject co) {
-        return co instanceof Chart ?
-                co.getString() :
-                Arrays.stream(co.getData())
-                .map(Chart::getName)
-                .collect(Collectors.joining(" и #", "<%s: #"
-                        .formatted(co.getName()),
-                        ">\n"));
-    }
-
-    public static ChartList fromStoringString(String input) {
-        ChartList list = new ChartList();
-
-
-
-        return list;
-    }
 }

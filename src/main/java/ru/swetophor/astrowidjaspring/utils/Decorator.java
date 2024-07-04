@@ -1,14 +1,48 @@
 package ru.swetophor.astrowidjaspring.utils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.IntStream;
 
+/**
+ * Утилита для создания рамок вокруг текста.
+ *
+ * @author swetophor
+ */
 public class Decorator {
+
+    /**
+     * Константный массив звёздочек для создания звёздной рамки.
+     */
     public static final char[] ASTERISK_FRAME = {'*'};
+    /**
+     * Константный массив символов одинарной рамки.
+     */
     public static final char[] SINGULAR_FRAME = {'┌', '─', '┐', '│', '└', '┘'};
+    /**
+     * Константный массив символов двойной рамки.
+     */
     public static final char[] DOUBLE_FRAME = {'╔', '═', '╗', '║', '╚', '╝'};
+    /**
+     * Константный массив символов полудвойной рамки.
+     */
     public static final char[] HALF_DOUBLE_FRAME = {'┌', '─', '╖', '│', '║', '╘', '═', '╝'};
 
-
+    /**
+     * Создаёт рамку вокруг заданного текста с указанными параметрами.
+     *
+     * @param text          обрамляемый текст.
+     * @param minWidth      минимальная ширина рамки.
+     * @param maxWidth      максимальная ширина рамки.
+     * @param leftTop        символ левого верхнего угла рамки.
+     * @param horizontal      символ горизонтальной линии рамки.
+     * @param rightTop       символ правого верхнего угла рамки.
+     * @param vertical        символ вертикальной линии рамки.
+     * @param leftBottom     символ левого нижнего угла рамки.
+     * @param rightBottom    символ правого нижнего угла рамки.
+     * @return строковое представление обрамлённого текста.
+     */
     public static String frameText(String text,
                                    int minWidth,
                                    int maxWidth,
@@ -28,17 +62,18 @@ public class Decorator {
                                 .max()
                                 .orElse(0)));
 
-        output.append(buildBorderString(leftTop, horizontal, rightTop, width + 4));
+        int framedWidth = width + 4;
+        output.append(buildBorderString(leftTop, horizontal, rightTop, framedWidth));
 
         for (String line : lines) {
             while (line.length() > width) {
-                output.append(buildMidleString(vertical, line.substring(0, width), width + 4));
+                output.append(buildMidleString(vertical, line.substring(0, width), framedWidth));
                 line = line.substring(width);
             }
-            output.append(buildMidleString(vertical, line, width + 4));
+            output.append(buildMidleString(vertical, line, framedWidth));
         }
 
-        output.append(buildBorderString(leftBottom, horizontal, rightBottom, width + 4));
+        output.append(buildBorderString(leftBottom, horizontal, rightBottom, framedWidth));
 
         return output.toString();
     }
@@ -146,6 +181,55 @@ public class Decorator {
                 .formatted(leftBorder,
                         complementString(text, length - 4),
                         rightBorder);
+    }
+
+    public static String concatenateTables(String... tables) {
+        if (tables == null || tables.length == 0)
+            throw new IllegalArgumentException();
+        if (tables.length == 1)
+            return tables[0];
+
+        StringBuilder output = new StringBuilder();
+
+        List<List<String>> stuff = new ArrayList<>(Arrays.stream(tables)
+                .map(table -> new ArrayList<>(table.lines().toList()))
+                .toList());
+
+        int ceilingTableLength = stuff.stream()
+                .mapToInt(List::size)
+                .max().orElse(0);
+
+        for (int i = 0; i < stuff.size(); i++) {
+            var list = stuff.get(i);
+            if (list.size() < ceilingTableLength)
+                stuff.set(i, stretchTable(list, ceilingTableLength));
+        }
+
+        for (int i = 0; i < ceilingTableLength; i++) {
+            for (int j = 0; j < stuff.size(); j++) {
+                String str = stuff.get(j).get(i);
+                output.append(j == 0 ? str : str.substring(1));
+            }
+            output.append("\n");
+        }
+
+        return output.toString();
+    }
+
+    private static List<String> stretchTable(List<String> table, int ceilingTableLength) {
+        if (table.size() < 3 || ceilingTableLength < 3) throw new IllegalArgumentException("Минимальная высота таблицы = 3");
+        int fillerCount = ceilingTableLength - table.size();
+        if (fillerCount < 0) throw new IllegalArgumentException("Таблица уже длиннее, чем " + ceilingTableLength);
+
+        if (fillerCount > 0) {
+            String middleLine = table.get(1);
+            if (middleLine.length() < 5) throw new IllegalArgumentException("Минимальная ширина таблицы = 5");
+            int length = middleLine.length();
+            String filler = middleLine.charAt(0) + " ".repeat(length - 2) + middleLine.charAt(length - 1);
+            IntStream.range(0, fillerCount)
+                    .forEach(_ -> table.add(table.size() - 1, filler));
+        }
+        return table;
     }
 
     /*

@@ -130,7 +130,7 @@ public class CommandLineController implements UserController {
                 printInAsterisk(libraryService.listAlbumsContents());
 
             } else if (input.equals("+=")) {
-                libraryService.updateLibrary();
+                libraryService.reloadLibrary();
 
             // удаление файла (группы)
             } else if (input.toLowerCase().startsWith("xxx") || input.toLowerCase().startsWith("ххх")) {

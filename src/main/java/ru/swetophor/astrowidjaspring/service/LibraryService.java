@@ -62,7 +62,7 @@ public class LibraryService {
         library.sort(Comparator.comparing(AlbumInfo::getModified).reversed());
     }
 
-    private void reloadLibrary() {
+    public void reloadLibrary() {
         library.clear();
         library.addAll(chartRepository.getLibrarySummery());
     }
@@ -113,6 +113,7 @@ public class LibraryService {
                             .forEach(output::append);
                 });
         return output.toString();
+        // TODO: корректно считывать синастрии из файла (отображать ли привходящие одинарные)
     }
 
     /**

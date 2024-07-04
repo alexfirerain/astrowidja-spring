@@ -179,4 +179,9 @@ public final class CelestialMechanics {
                 delta / orb * 100 :
                 delta / (HALF_CIRCLE - orb) * 100;
     }
+
+    public static boolean areConjuncted(Astra a, Astra b) {
+        return Astra.ofSameHeaven(a, b) &&
+                getArc(a, b) <= Settings.getPrimalOrb();
+    }
 }

@@ -18,9 +18,13 @@ public class Environments {
      * Папка программы, создаваемая в пространстве пользователя.
      */
     public static Path appDir;
-//    public static final String baseDirName = "base";
+    /**
+     * Папка с данными, создаваемая в папке программы.
+     */
     public static Path baseDir;
-
+    /**
+     * Файл с настройками, хранимый в папке программы.
+     */
     public static Path settingsSource;
 
     @PostConstruct

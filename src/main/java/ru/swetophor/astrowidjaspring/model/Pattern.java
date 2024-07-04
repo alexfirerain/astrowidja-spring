@@ -238,6 +238,7 @@ public class Pattern {
                 .map(Cluster::toString)
                 .collect(Collectors.joining());
     }
+    // TODO: исправить отображение кластеров в синастрических узорах
 
 
     /**
@@ -283,7 +284,7 @@ public class Pattern {
 
         public boolean inConjunction(Astra astra) {
             return conjuncted.stream()
-                    .anyMatch(a -> areConjuncted(a, astra));
+                    .anyMatch(a -> CelestialMechanics.areConjuncted(a, astra));
         }
 
         @Override
@@ -304,10 +305,6 @@ public class Pattern {
                         .sum()
                     / conjuncted.size();
         }
-    }
-
-    private boolean areConjuncted(Astra a, Astra b) {
-        return CelestialMechanics.getArc(a, b) <= Settings.getPrimalOrb();
     }
 
 }

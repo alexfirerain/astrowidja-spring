@@ -2,6 +2,7 @@ package ru.swetophor.astrowidjaspring.model.astro;
 
 import lombok.Getter;
 import lombok.Setter;
+import ru.swetophor.astrowidjaspring.exception.FileFormatException;
 import ru.swetophor.astrowidjaspring.model.chart.Chart;
 import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
 
@@ -109,10 +110,12 @@ public class Astra {
      *              градусами, градусами и минутами или градусами,
      *              минутами и секундами - через пробел.
      * @return заполненный объект Астра.
+     * @throws FileFormatException если по какой-либо причине строка не
+     *              читается как корректные данные об астре.
      */
     public static Astra readFromString(String input) {
         var elements = input.trim().split(" ");
-        Double[] coors = new Double[0];
+        Double[] coors;
 
         try {
             if (elements.length == 0)
@@ -123,7 +126,7 @@ public class Astra {
                     .collect(Collectors.toCollection(() -> new ArrayList<>(4)))
                     .toArray(Double[]::new);
         } catch (RuntimeException e) {
-            System.out.println("Не удалось прочитать строку '" + input + "': " + e.getMessage());
+            throw new FileFormatException("Не удалось прочитать строку '" + input + "': " + e.getMessage());
         }
 
         return Astra.fromData(elements[0], coors);
@@ -218,15 +221,6 @@ public class Astra {
                         coors[2]);
     }
 
-//    public double getOrbInHarmonicWith(int harmonic, Astra counterpart) {
-//        return getResonanceMatrix()
-//                .findResonance(this, counterpart)
-//                .getAspects().stream()
-//                .filter(a -> a.hasResonance(harmonic))
-//                .findFirst()
-//                .map(Aspect::getClearance)
-//                .orElseThrow();
-//    }
 
     public double getArcInHarmonicWith(int harmonic, Astra counterpart) {
         return getArcForHarmonic(this, counterpart, harmonic);

@@ -54,26 +54,9 @@ public non-sealed class Chart extends ChartObject {
         return new Chart[]{ this };
     }
 
-    /**
-     * Выдаёт строку в том формате, как данные о
-     * карте сохраняются в файл: в первой строке "#"
-     * и название карты, затем в каждой строке
-     * имя и координаты астры (как "градусы минуты секунды"),
-     * а также ещё одна пустая строка в конце.
-     * @return пригодное для сохранения строковое представление карты.
-     */
-    @Override
-    public String getString() {
-        return astras.stream()
-                .map(Astra::getString)
-                .collect(Collectors.joining("",
-                        "#%s%n".formatted(name),
-                        "\n"));
-    }
-
     @Override
     public String getAstrasList() {
-        StringBuilder list = new StringBuilder("%nЗодиакальные позиции (%s):%n".formatted(name));
+        StringBuilder list = new StringBuilder("\tЗодиакальные позиции (%s):\t\n".formatted(name));
         astras.forEach(next -> list.append(
                         "%15s\t %s%n".formatted(
                                 next.getNameWithZodiacDegree(),
@@ -82,6 +65,24 @@ public non-sealed class Chart extends ChartObject {
                 )
         );
         return list.toString();
+    }
+
+    /**
+     * Выдаёт строку в том формате, как данные о
+     * карте сохраняются в DAW-файл: в первой строке "#"
+     * и название карты, затем в каждой строке
+     * имя и координаты астры (как "градусы минуты секунды"), как оно
+     * предоставляется функцией {@link Astra#getString()}.
+     * а также ещё одна пустая строка в конце.
+     * @return пригодное для сохранения строковое представление карты.
+     */
+    @Override
+    public String toStoringString() {
+        return astras.stream()
+                .map(Astra::getString)
+                .collect(Collectors.joining("",
+                        "#%s%n".formatted(name),
+                        "\n"));
     }
 
     @Override

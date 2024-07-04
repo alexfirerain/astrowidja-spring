@@ -1,8 +1,10 @@
 package ru.swetophor.astrowidjaspring.repository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Repository;
 import ru.swetophor.astrowidjaspring.client.UserController;
+import ru.swetophor.astrowidjaspring.exception.FileFormatException;
 import ru.swetophor.astrowidjaspring.model.AlbumInfo;
 import ru.swetophor.astrowidjaspring.model.astro.Astra;
 import ru.swetophor.astrowidjaspring.model.chart.Chart;
@@ -34,9 +36,10 @@ public class FileChartRepository implements ChartRepository {
     private final UserController userController;
 
 
+    @SneakyThrows
     @Override
     public ChartList getAlbumSubstance(String albumName) {
-        return readChartsFromFile(albumName);
+        return readChartsFromDAW(albumName);
     }
 
     /**
@@ -48,7 +51,7 @@ public class FileChartRepository implements ChartRepository {
      * Если файл не существует или не читается, то пустой список
      * с именем, указанным в запросе.
      */
-    private ChartList readChartsFromFile(String filename) {
+    private ChartList readChartsFrom(String filename) {
         if (filename == null || filename.isBlank())
             throw new IllegalArgumentException("пустое имя");
         filename = addExtension(filename);
@@ -71,71 +74,117 @@ public class FileChartRepository implements ChartRepository {
         return read;
     }
 
-    private ChartList readChartsFrom(String filename) {
+    /**
+     * Восстанавливает из строкового представления в daw-файле
+     * картосписок, идентичный сохранённому в тот файл.
+     * @param filename  имя открываемого файла аз папке базы данных.
+     * @return  картосписок из карт и многокарт.
+     * @throws FileNotFoundException    если файл не обнаружился.
+     */
+    private ChartList readChartsFromDAW(String filename) throws FileNotFoundException {
         if (filename == null || filename.isBlank())
             throw new IllegalArgumentException("пустое имя");
+        // новый пустой картосписок, который будет заполнен и отдан
         ChartList read = new ChartList(removeExtension(filename));
         Path filePath = baseDir.resolve(addExtension(filename));
         if (!Files.exists(filePath)) {
-            console("Не удалось обнаружить файла '%s'%n"
+            throw new FileNotFoundException("Не удалось обнаружить файла '%s'%n"
                     .formatted(filename));
         } else {
             try {
+                // строки из файла
                 String[] lines = Files.readString(filePath)
                         .lines().toArray(String[]::new);
 
+                // текущая карта, в которую добавляем астры (пока никакая)
                 Chart nextChart = null;
+                // идёт ли процесс заполнения (пока нет)
                 boolean fillingChart = false;
-                Queue<String> multiChartMarks = new ArrayDeque<>();
+                // сюда будем складывать строки, содержащие определения мультикарт
+                Queue<String> multiChartDescriptions = new ArrayDeque<>();
 
+                // перебираем по строке
                 for (String line : lines) {
+                    // пустые и закомментированные не интересуют
                     if (line.isBlank() || line.startsWith("//"))
                         continue;
 
+                    // ежели это определение мультикарты
                     if (line.startsWith("<")) {
+                        // если шло заполнение какой-то карты
                         if (fillingChart) {
-                            read.add(nextChart);
+                            // значит оно закончено
                             fillingChart = false;
+                            // и карта готова добавляться к результирующему картосписку
+                            read.add(nextChart);
+                            // теперь будем заполнять новую (но не раньше, чем она объявится)
                             nextChart = null;
                         }
-                        multiChartMarks.add(line);
+                        // отложим эту строку в сторонку
+                        multiChartDescriptions.add(line.substring(1, line.lastIndexOf(">")).trim());
+                        // и зарезервируем в строимом картосписке местечко
                         read.add(null);
                         continue;
                     }
 
+                    // если это определение новой карты
                     if (line.startsWith("#")) {
+                        // если идёт заполнение какой-то карты
                         if (fillingChart)
+                            // значит оно закончено, можно её добавить
                             read.add(nextChart);
+                        // инициируем заполнять новую карту, создаём её по имени
                         nextChart = new Chart(line.substring(1).trim());
+                        // если заполнение карты ещё не шло, теперь точно идёт
                         fillingChart = true;
                         continue;
                     }
 
+                    // если строка не начинается ни с '<', ни с '#', ни с '//'
+                    // и какая-то карта заполняется
                     if (nextChart != null)
+                        // значит это строка с определением астры для этой карты
                         nextChart.addAstra(Astra.readFromString(line));
                 }
+                // прочитав все строки
+                // если заполнялась какая-то карта
                 if (nextChart != null)
+                    // значит и она готова, добавим её
                     read.add(nextChart);
 
-
+                // список мультикарт, которые восстановим
                 Queue<MultiChart> multiCharts = new ArrayDeque<>();
 
-                multiChartMarks.forEach(mark -> {
-                    String[] parts = mark
-                            .substring(mark.indexOf("<") + 1, mark.lastIndexOf(">"))
-                            .split("#");
-                    if (parts.length < 2) throw new IllegalArgumentException("неверный формат");
+                // перебираем строки с определениями мультикарт
+                for (String string : multiChartDescriptions) {
+                    // разбиваем определение на фрагменты
+                    String[] parts = string.split("#");
+                    if (parts.length < 2)
+                        throw new FileFormatException("В строке не определены входящие карты: " + string);
+                    // сейчас будем находить привходящие карты
                     Chart[] components = new Chart[parts.length - 1];
-                    IntStream.range(1, parts.length)
-                            .forEach(i -> components[i - 1] = (Chart) read.get(parts[i].trim()));
-                    multiCharts.add(new MultiChart(parts[0].trim()
-                            .substring(0, mark.lastIndexOf(":")), components));
-                });
+                    // переберём найденные фрагменты определения, кроме первого
+                    for (int i = 1; i < parts.length; i++) {
+                        // это ничто иное как имя карты, которая уже должна быть в наполняемом
+                        Chart chart = (Chart) read.get(parts[i].trim());
+                        // но если её там нет
+                        if (chart == null)
+                            // то это нарушение формата
+                            throw new FileFormatException("Входящая карта " + parts[i] + " не определена в этом альбоме.");
+                        // а если есть, то это одна из карт воссоздаваемой многокарты
+                        components[i - 1] = chart;
+                    }
+                    // и мы восстанавливаем из файла объект многокарты (название в первом фрагменте)
+                    multiCharts.add(new MultiChart(parts[0].trim().substring(0, string.lastIndexOf(":")),
+                            components));
+                }
 
+                // пройдёмся по воссоздаваемому картосписку
                 IntStream.range(0, read.size())
+                        // и где оставлены свободные места
                         .filter(i -> read.get(i) == null)
+                        // заполним по порядку воссозданными многокартами
                         .forEach(i -> read.setItem(i, multiCharts.remove()));
-
 
             } catch (IOException e) {
                 console("Не удалось прочесть файла '%s': %s%n"
@@ -160,8 +209,8 @@ public class FileChartRepository implements ChartRepository {
     }
 
     @Override
-    public String deleteAlbum(String fileToDelete) {
-        fileToDelete = addExtension(fileToDelete);
+    public String deleteAlbum(String albumToDelete) {
+        String fileToDelete = addExtension(albumToDelete);
         String report;
         try {
             if (Files.deleteIfExists(baseDir.resolve(fileToDelete))) {
@@ -202,10 +251,17 @@ public class FileChartRepository implements ChartRepository {
      *
      * @return список списков карт, соответствующих файлам в рабочей папке.
      */
+    @SneakyThrows
     @Override
     public List<ChartList> getAllAlbums() {
         return albumNames().stream()
-                .map(this::readChartsFromFile)
+                .map(filename -> {
+                    try {
+                        return readChartsFromDAW(filename);
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .toList();
     }
 
@@ -264,10 +320,11 @@ public class FileChartRepository implements ChartRepository {
      *               конфликт названия, идёт интерактивное уточнение.
      * @return  изменился ли список (файл) в результате вызова функции.
      */
+    @SneakyThrows
     @Override
     public boolean addChartsToAlbum(String file, ChartObject... charts) {
         file = addExtension(file);
-        ChartList fileContent = readChartsFromFile(file);
+        ChartList fileContent = readChartsFromDAW(file);
         boolean changed = false;
         for (ChartObject c : charts)
             if (userController.mergeChartIntoList(fileContent, c, file))
@@ -301,11 +358,12 @@ public class FileChartRepository implements ChartRepository {
      * @param target имя файла в папке базы данных, в который нужно дописать карты.
      * @return  строку с описанием результата операции.
      */
+    @SneakyThrows
     @Override
     public String addChartsToAlbum(ChartList table, String target) {
         target = addExtension(target);
         String result;
-        ChartList fileContent = readChartsFromFile(target);
+        ChartList fileContent = readChartsFromDAW(target);
         if (table.isEmpty() || !fileContent.addAll(table)) {
             result = "Никаких новых карт в файл не добавлено.";
         } else {
