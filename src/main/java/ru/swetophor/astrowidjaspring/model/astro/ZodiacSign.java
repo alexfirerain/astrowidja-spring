@@ -1,10 +1,13 @@
 package ru.swetophor.astrowidjaspring.model.astro;
 
+import lombok.Getter;
+
 import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.normalizeCoordinate;
 
 /**
  * Представление зодиакального знака, содержит символ.
  */
+@Getter
 public enum ZodiacSign {
     ARIES('♈'),
     TAURUS('♉'),
@@ -31,10 +34,6 @@ public enum ZodiacSign {
 
     public static ZodiacSign getZodiumOf(double position) {
         return values()[(int) normalizeCoordinate(position) / 30];
-    }
-
-    public char getSymbol() {
-        return symbol;
     }
 
 }

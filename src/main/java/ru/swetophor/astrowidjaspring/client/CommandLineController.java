@@ -546,15 +546,6 @@ public class CommandLineController implements UserController {
     }
 
     /**
-     * Создаёт карту на основе юзерского ввода.
-     * @return {@link Chart одиночную карту}, созданную на основе ввода.
-     */
-    public Chart getChartFromUserInput(String userInput) {
-        // TODO: вообще-то это должен быть построитель карты на основе заданного момента времени
-        return Chart.readFromString(userInput);
-    }
-
-    /**
      * Задаёт пользователю вопрос и возвращает булево, соответствующее его ответу.
      * @param prompt    вопрос, который спрашивает программа.
      * @return  {@code ДА} или {@code НЕТ} сообразно вводу пользователя.

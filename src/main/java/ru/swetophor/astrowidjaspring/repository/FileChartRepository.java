@@ -246,48 +246,6 @@ public class FileChartRepository implements ChartRepository {
 
 
     /**
-     * Прочитывает содержание всех файлов с картами.
-     * Если по какой-то причине таковых не найдено, то пустой список.
-     *
-     * @return список списков карт, соответствующих файлам в рабочей папке.
-     */
-    @SneakyThrows
-    @Override
-    public List<ChartList> getAllAlbums() {
-        return albumNames().stream()
-                .map(filename -> {
-                    try {
-                        return readChartsFromDAW(filename);
-                    } catch (FileNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .toList();
-    }
-
-
-    /**
-     * Выдаёт список имён карт из файла базы данных Астровидьи.
-     * @param albumName имя файла, соответствующего картосписку.
-     * @return   список имён карт, найденных в файле.
-     */
-    @Override
-    public List<String> getAlbumContents(String albumName) {
-        albumName = addExtension(albumName);
-        List<String> list = new ArrayList<>();
-        try {
-            list = Files.readString(baseDir.resolve(albumName))
-                    .lines()
-                    .filter(line -> line.startsWith("#") && line.length() > 1)
-                    .map(line -> line.substring(1).strip())
-                    .toList();
-        } catch (IOException e) {
-            console("Файл %s не прочитался:%s".formatted(albumName, e.getLocalizedMessage()));
-        }
-        return list;
-    }
-
-    /**
      * Записывает содержимое картосписка (как возвращается {@link ChartList#getString()})
      * в файл по указанному адресу (относительно рабочей папки).
      * Существующий файл заменяется, несуществующий создаётся.
@@ -295,12 +253,12 @@ public class FileChartRepository implements ChartRepository {
      * так и используется, если же ещё нет, то нужное расширение добавляется.
      *
      * @param content  список карт, чьё содержимое записывается.
-     * @param fileName имя файла в рабочей папке, в который сохраняется.
+     * @param albumName имя файла в рабочей папке, в который сохраняется.
      * @return  строку, сообщающую, что карты или записались, или нет.
      */
     @Override
-    public String saveChartsAsAlbum(ChartList content, String fileName) {
-        fileName = addExtension(fileName);
+    public String saveChartsAsAlbum(ChartList content, String albumName) {
+        String fileName = addExtension(albumName);
 
         try (PrintWriter out = new PrintWriter(baseDir.resolve(fileName).toFile())) {
             out.println(content.getString());
@@ -379,24 +337,6 @@ public class FileChartRepository implements ChartRepository {
         return result;
     }
 
-    @Override
-    public AlbumInfo getAlbumSummary(String filename) {
-        Path filePath = baseDir.resolve(addExtension(filename));
-        List<String> chartNames;
-        long lastModifiedTime;
-        try {
-            chartNames = Files.readString(filePath).lines()
-                    .filter(line -> line.startsWith("#") && line.length() > 1)
-                    .map(line -> line.substring(1).strip())
-                    .toList();
-            lastModifiedTime = Files.getLastModifiedTime(filePath).toMillis();
-        } catch (IOException e) {
-            console("Нет доступа к файлу " + filePath);
-            return null;
-        }
-        return new AlbumInfo(removeExtension(filename), chartNames, lastModifiedTime);
-    }
-
     /**
      * Строит для некого файла карточку краткой информации:
      * название, дата обновления, оглавление карт.
@@ -407,17 +347,18 @@ public class FileChartRepository implements ChartRepository {
         List<String> chartNames;
         try {
             chartNames = Files.readString(file.toPath()).lines()
-                    .filter(line -> line.startsWith("#") && line.length() > 1)
-                    .map(line -> line.substring(1).strip())
+                    .filter(line -> ((line.startsWith("#") || line.startsWith("<")) && line.length() > 1))
+                    .map(line -> line.startsWith("<") ?
+                            line.substring(1, line.lastIndexOf(":")).strip() :
+                            line.substring(1).strip())
                     .toList();
         } catch (Exception e) {
             throw new RuntimeException("Чтение файла '%s' обломалось: %s."
                     .formatted(file.toString(), e));
         }
-        return new AlbumInfo(
-                            removeExtension(file.getName()),
-                            chartNames,
-                            file.lastModified());
+        return new AlbumInfo(removeExtension(file.getName()),
+                                chartNames,
+                                file.lastModified());
     }
 
     @Override
@@ -435,7 +376,7 @@ public class FileChartRepository implements ChartRepository {
                     }
                 })
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(AlbumInfo::getModified))
+                .sorted(Comparator.comparing(AlbumInfo::modified))
                 .toList();
     }
 
@@ -455,10 +396,16 @@ public class FileChartRepository implements ChartRepository {
                     }
                 })
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(AlbumInfo::getModified))
+                .sorted(Comparator.comparing(AlbumInfo::modified))
                 .toList();
     }
 
+    /**
+     * Проверяет, является ли данный файл файлом данных АстроВидьи.
+     * @param file проверяемый файл.
+     * @return {@code true} если файл не является папкой и оканчивает своё
+     * имя на ".daw", иначе {@code false}.
+     */
     private boolean isAstroWidjaDataFile(File file) {
         return !file.isDirectory() && file.getName().endsWith(".daw");
     }

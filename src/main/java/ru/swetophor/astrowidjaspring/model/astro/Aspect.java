@@ -151,6 +151,7 @@ public class Aspect {
      * и он достаточно силён, чтобы проявиться в ней. И обратное в ином случае.
      */
     public boolean hasResonance(int harmonic) {
+        if (harmonic <= 0) throw new IllegalArgumentException();
         return harmonic % numeric == 0 && harmonic / numeric <= depth;
     }
 

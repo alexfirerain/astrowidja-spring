@@ -69,7 +69,7 @@ public class ResonanceBatch {
      * @param b                вторая астра резонанса.
      * @param primalOrb              первичный орбис резонанса для соединений
      *                              (должен предоставляться {@link Settings#getPrimalOrb()}),
-     *                              сокращение для синастрий осуществляется внутри метода
+     *                              сокращение для синастрий осуществляется внутри конструктора
      *                               на основании глобальной настройки {@link Settings#isHalfOrbsForDoubles()}.
      * @param ultimateHarmonic до какой гармоники продолжать анализ.
      */
@@ -226,7 +226,7 @@ public class ResonanceBatch {
      */
     public boolean hasResonanceElement(int harmonic) {
         return aspects.stream()
-                .anyMatch(a -> a.hasMultiplier(harmonic));
+                .anyMatch(a -> a.hasMultiplier(harmonic) || a.getNumeric() == harmonic);
     }
 
     /**
@@ -234,10 +234,10 @@ public class ResonanceBatch {
      * @param harmonic проверяемая на наличие резонанса гармоника.
      * @return  {@code true}, если среди аспектов, определённых для этого резонанса,
      * присутствует указанное число, {@code false} в ином случае.
-     * При этом, например, аспект трин хоть и присутствует в карте 6-й гармоники как соединение,
+     * @apiNote При этом, например, аспект трин хоть и присутствует в карте 6-й гармоники как соединение,
      * но для harmonic = 6 имеющий его объект резонанса вернёт {@code false}.
      */
-    public boolean hasGivenHarmonic(int harmonic) {
+    public boolean hasExactHarmonic(int harmonic) {
         return aspects.stream()
                 .anyMatch(a -> a.getNumeric() == harmonic);
     }
@@ -248,7 +248,7 @@ public class ResonanceBatch {
      * @return  {@code true}, если астры резонанса имеют связь (резонанс) по
      * указанной гармонике, как определяется методом {@link Aspect#hasResonance(int) hasResonance()}.
      */
-    public boolean hasHarmonicPattern(int harmonic) {
+    public boolean hasHarmonicResonance(int harmonic) {
         return aspects.stream()
                 .anyMatch(a -> a.hasResonance(harmonic));
     }

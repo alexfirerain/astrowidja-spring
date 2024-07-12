@@ -28,6 +28,11 @@ public class LibraryService {
      */
     private final UserController userController;
 
+    /**
+     * Отображение в памяти информации о базе карт:
+     * список карточек альбомов, в каждой название альбома,
+     * список карт в альбоме и дата последнего обновления альбома.
+     */
     private final List<AlbumInfo> library = new ArrayList<>();
 
     /**
@@ -47,21 +52,24 @@ public class LibraryService {
         } else {
             // файлы, обновлённые после последнего известного обновления
             var updates = chartRepository
-                    .getLibraryUpdates(library.getFirst().getModified());
+                    .getLibraryUpdates(library.getFirst().modified());
             // файлы, остающиеся существующими и не обновлёнными
             var remainings = library.stream()
-                    .filter(info -> chartRepository.albumNames().contains(info.getName()))
+                    .filter(info -> chartRepository.albumNames().contains(info.name()))
                     .filter(info -> updates.stream()
-                            .noneMatch(newInfo -> newInfo.getName().equals(info.getName())))
+                            .noneMatch(newInfo -> newInfo.name().equals(info.name())))
                     .toList();
             // вместе они новое содержание библиотеки
             library.retainAll(remainings);
             library.addAll(updates);
         }
         // библиотека сортирована по убыванию свежести сохранения
-        library.sort(Comparator.comparing(AlbumInfo::getModified).reversed());
+        library.sort(Comparator.comparing(AlbumInfo::modified).reversed());
     }
 
+    /**
+     * Перечитывает базу карт целиком.
+     */
     public void reloadLibrary() {
         library.clear();
         library.addAll(chartRepository.getLibrarySummery());
@@ -73,18 +81,19 @@ public class LibraryService {
     }
 
     /**
-     * Выдаёт строковое представление групп карт в библиотеке.
+     * Выдаёт строковое представление списка альбомов карт,
+     * присутствующих в библиотеке.
      *
-     * @return нумерованный (с 1) список групп (многостроку).
-     * Если в базе данных нет ни одной группы карт, то сообщение об этом.
+     * @return нумерованный (с 1) список альбомов (многостроку).
+     * Если в базе данных нет ни одного альбома карт, то сообщение об этом.
      */
     public String listAlbums() {
         if (library.isEmpty()) return "в базе %s нет ни файла"
                 .formatted(Environments.baseDir.toString());
 
         return IntStream.range(0, library.size())
-                .mapToObj(albumIndex -> "%d. %s%n"
-                        .formatted(albumIndex + 1, library.get(albumIndex).getName()))
+                .mapToObj(albumIndex -> "%d. %s%n".formatted(albumIndex + 1,
+                                library.get(albumIndex).name()))
                 .collect(Collectors.joining());
     }
 
@@ -92,8 +101,8 @@ public class LibraryService {
      * Выдаёт строковое представление содержимого библиотеки
      * (как оно отображается в памяти).
      *
-     * @return нумерованный (с 1) список групп, вслед каждой группе -
-     * нумерованный (с 1) список карт в ней.
+     * @return нумерованный (с 1) список альбомов, под каждым из них —
+     * нумерованный (с 1) список карт в нём.
      */
     public String listAlbumsContents() {
         if (library.isEmpty()) return "в базе %s нет ни файла"
@@ -102,13 +111,11 @@ public class LibraryService {
         StringBuilder output = new StringBuilder();
         IntStream.range(0, library.size())
                 .forEach(albumIndex -> {
-                    output.append("%d. %s:%n"
-                            .formatted(albumIndex + 1,
-                                    library.get(albumIndex).getName()));
-                    var chartNames = library.get(albumIndex).getChartNames();
+                    output.append("%d. %s:%n".formatted(albumIndex + 1,
+                                    library.get(albumIndex).name()));
+                    var chartNames = library.get(albumIndex).chartNames();
                     IntStream.range(0, chartNames.size())
-                            .mapToObj(chartIndex -> "\t%d. %s%n"
-                                    .formatted(chartIndex + 1,
+                            .mapToObj(chartIndex -> "\t%d. %s%n".formatted(chartIndex + 1,
                                             chartNames.get(chartIndex)))
                             .forEach(output::append);
                 });
@@ -129,7 +136,7 @@ public class LibraryService {
     public ChartList findList(String chartListOrder) {
         int groupIndex;
         List<String> albumNames = library.stream()
-                .map(AlbumInfo::getName)
+                .map(AlbumInfo::name)
                 .toList();
         try {
             groupIndex = defineIndexFromInput(chartListOrder, albumNames);
@@ -210,11 +217,11 @@ public class LibraryService {
     }
 
     public String deleteAlbum(String fileToDelete) {
-        var albumNames = library.stream().map(AlbumInfo::getName).toList();
+        var albumNames = library.stream().map(AlbumInfo::name).toList();
         if (fileToDelete.endsWith("***")) {
             String prefix = fileToDelete.substring(0, fileToDelete.length() - 3).trim();
             library.stream()
-                    .map(AlbumInfo::getName)
+                    .map(AlbumInfo::name)
                     .filter(name -> name.startsWith(prefix))
                     .forEach(this::deleteAlbum);
         }

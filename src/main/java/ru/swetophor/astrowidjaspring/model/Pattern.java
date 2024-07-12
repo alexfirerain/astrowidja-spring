@@ -83,8 +83,10 @@ public class Pattern {
     public void addAstra(Astra astra) {
         for (Astra a : elements.keySet())
             if (a.isTheSame(astra)) return;
+
         if (!heavens.contains(astra.getHeaven()))
             heavens.add(astra.getHeaven());
+
         double clearanceSum = 0.0;
         for (Astra a : elements.keySet()) {
             double clearance = getArcForHarmonic(astra, a, harmonic);

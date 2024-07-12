@@ -18,21 +18,15 @@ public interface ChartRepository {
 
     List<String> albumNames();
 
-    List<String> getAlbumContents(String albumName);
-
     ChartList getAlbumSubstance(String filename);
-
-    List<ChartList> getAllAlbums();
 
     String addChartsToAlbum(ChartList table, String target);
 
     boolean addChartsToAlbum(String s, ChartObject... chartObject);
 
-    String saveChartsAsAlbum(ChartList desk, String s);
+    String saveChartsAsAlbum(ChartList content, String albumName);
 
     String deleteAlbum(String groupToDelete);
-
-    AlbumInfo getAlbumSummary(String filename);
 
     List<AlbumInfo> getLibrarySummery();
 

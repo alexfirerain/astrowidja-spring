@@ -53,6 +53,7 @@ public class AstroMatrix {
                 .flatMap(c -> c.getAstras().stream())
                 .toList();
 
+        long before = System.nanoTime();    // monitor
         // построение индекса астр
         index = new HashMap<>();
         int counter = 0;
@@ -61,6 +62,7 @@ public class AstroMatrix {
             for (Astra astra : chart.getAstras())
                 index.get(chart).put(astra, counter++);
         }
+        System.out.println("Индекс построен за " + (System.nanoTime() - before) + " нс."); // monitor
 
         // построение матрицы резонансов
         matrix = new ResonanceBatch[allAstras.size()][allAstras.size()];
@@ -87,10 +89,12 @@ public class AstroMatrix {
     }
 
     /**
-     *  Выдаёт рассчитанный для пары астр резонанс.
+     * Выдаёт рассчитанный для пары астр резонанс.
      * @param a первая астра резонанса.
      * @param b вторая астра резонанса.
      * @return  объект резонанса, рассчитанный в Матрице для двух указанных астр.
+     * @throws IllegalArgumentException если вдруг хотя бы одна из астр не найдена
+     *          или астры идентичны между собой.
      */
     public ResonanceBatch getResonanceFor(Astra a, Astra b) {
         if (a == b) throw new IllegalArgumentException("Астра не делает резонанса сама с собой");
@@ -109,7 +113,7 @@ public class AstroMatrix {
     /**
      * Сообщает, что между этими астрами присутствует
      * номинальный резонанс по указанной гармонике, как это сообщается
-     * {@link ResonanceBatch#hasGivenHarmonic(int) hasGivenHarmonic()}.
+     * {@link ResonanceBatch#hasExactHarmonic(int) hasExactHarmonic()}.
      * @param a первая проверяемая астра.
      * @param b вторая проверяемая астра.
      * @param harmonic  гармоника, явная связь по которой проверяется.
@@ -117,7 +121,7 @@ public class AstroMatrix {
      * явный резонанс по указанной гармонике, в противном случае {@code false}.
      */
     public boolean inResonance(Astra a, Astra b, int harmonic) {
-        return getResonanceFor(a,b).hasGivenHarmonic(harmonic);
+        return getResonanceFor(a,b).hasExactHarmonic(harmonic);
     }
 
     /**
@@ -234,7 +238,7 @@ public class AstroMatrix {
      */
     public List<Astra> getConnectedAstras(Astra astra, int harmonic) {
         return resonancesFor(astra)
-                .stream().filter(r -> r.hasHarmonicPattern(harmonic))
+                .stream().filter(r -> r.hasHarmonicResonance(harmonic))
                 .map(r -> r.getCounterpart(astra))
                 .collect(Collectors.toList());
     }
@@ -283,6 +287,7 @@ public class AstroMatrix {
     public PatternTable buildPatternTable() {
         return new PatternTable(this);
     }
+
 
     public AspectTable buildAspectTable() {
         return new AspectTable(this);

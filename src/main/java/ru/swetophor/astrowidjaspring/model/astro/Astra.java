@@ -23,15 +23,15 @@ public class Astra {
     /**
      * Идентифицирующее имя астры.
      */
-    private String name;                                        // чо за астра
+    private String name;
     /**
      * Ссылка на карту неба, в которой находится астра.
      */
-    private Chart heaven;                                        // чья астра
+    private Chart heaven;
     /**
-     * Зодиакальное положение астры от 0°♈ в градусах как вещественное число от 0 до 360ю
+     * Зодиакальное положение астры от 0°♈ в градусах как вещественное число от 0 до 360.
      */
-    private double zodiacPosition;                        // положение в Зодиаке
+    private double zodiacPosition;
 
     // конструкторы для задания координаты с/без минут и секунд
 
@@ -252,4 +252,13 @@ public class Astra {
 //        return getArcInHarmonicWith(harmonic, counterpart) <= getPrimalOrb() && harmonic != 1
 //                || getArc(getZodiacPosition(), counterpart.getZodiacPosition()) <= effectiveOrb;
 //    }
+
+
+    @Override
+    public String toString() {
+        return "%s (%s) %s"
+                .formatted(name,
+                        heaven.getName(),
+                        getZodiacDegree());
+    }
 }

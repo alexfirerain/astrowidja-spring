@@ -95,9 +95,10 @@ public final class Harmonics extends Number implements Comparable<Harmonics> {
 
     /**
      * Выдаёт список множителей данного числа (не считая единицы, естественно).
+     * Например, для 10 → {2, 5}, для 11 → {11}, для 12 → {2, 2, 3}.
      * @param number неотрицательное число, разлагаемое на множители.
      * @return  список неравных единице множителей, дающих исходное число,
-     * от большего к меньшему. Для ноля {0}, для единицы {1}.
+     * от большего к меньшему. Для ноля {0} (неизменяемый список), для единицы {1} (неизменяемый список).
      * @throws IllegalArgumentException при отрицательном аргументе.
      */
     public static List<Integer> multipliersExplicate(int number) {
@@ -213,10 +214,9 @@ public final class Harmonics extends Number implements Comparable<Harmonics> {
      * @return массив последовательных гармоник от 1-ой до указанной включительно.
      */
     public static Harmonics[] generateUpTo(int ultimateHarmonic) {
-        Harmonics[] row = new Harmonics[ultimateHarmonic];
-        IntStream.rangeClosed(1, ultimateHarmonic)
-                .forEach(i -> row[i - 1] = new Harmonics(i));
-        return row;
+        return IntStream.rangeClosed(1, ultimateHarmonic)
+                .mapToObj(Harmonics::new)
+                .toArray(Harmonics[]::new);
     }
 
     /**
