@@ -214,8 +214,7 @@ public final class Harmonics extends Number implements Comparable<Harmonics> {
      * @return массив последовательных гармоник от 1-ой до указанной включительно.
      */
     public static Harmonics[] generateUpTo(int ultimateHarmonic) {
-        return IntStream.rangeClosed(1, ultimateHarmonic)
-                .mapToObj(Harmonics::new)
+        return streamUpTo(ultimateHarmonic)
                 .toArray(Harmonics[]::new);
     }
 

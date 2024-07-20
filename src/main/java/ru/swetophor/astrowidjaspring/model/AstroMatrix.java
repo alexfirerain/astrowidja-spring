@@ -48,6 +48,10 @@ public class AstroMatrix {
         // фиксация массива карт
         heavens = charts;
 
+        System.out.println("Строим новую АстроМатрицу для [" +
+                Arrays.stream(heavens).map(Chart::getName)
+                        .collect(Collectors.joining(", ")) + "]"); // monitor
+
         // создание общего массива астр
         allAstras = Arrays.stream(heavens)
                 .flatMap(c -> c.getAstras().stream())
@@ -62,7 +66,7 @@ public class AstroMatrix {
             for (Astra astra : chart.getAstras())
                 index.get(chart).put(astra, counter++);
         }
-        System.out.println("Индекс построен за " + (System.nanoTime() - before) + " нс."); // monitor
+        System.out.println("Индекс построен за " + ((double) (System.nanoTime() - before) / 1000.0) + " мс."); // monitor
 
         // построение матрицы резонансов
         matrix = new ResonanceBatch[allAstras.size()][allAstras.size()];
@@ -130,7 +134,7 @@ public class AstroMatrix {
      * @param a астра, резонансы которой интересуют.
      * @return  список резонансов указанной астры с каждой из остальных астр Матрицы.
      */
-    public List<ResonanceBatch> resonancesFor(Astra a) {
+    public List<ResonanceBatch> resonancesFor(Astra a, boolean[] actualAstrasMask) {
         List<ResonanceBatch> list = new ArrayList<>();
         int index = astraIndex(a);
         int i = 0, j = index;
@@ -141,7 +145,9 @@ public class AstroMatrix {
                 turning = true;
                 continue;
             }
-            list.add(matrix[i][j]);
+            if (actualAstrasMask[i] && actualAstrasMask[j]) {
+                list.add(matrix[i][j]);
+            }
             if (!turning) i++;
         }
         return list;
@@ -160,6 +166,11 @@ public class AstroMatrix {
                 .flatMap(Collection::stream);
     }
 
+    /**
+     * Возвращает в виде списка содержимое потока {@link AstroMatrix#stream()}.
+     * @return  список всех резонансов между всеми астрами АстроМатрицы
+     * в порядке, предоставляемом методом {@link #stream()}.
+     */
     public List<ResonanceBatch> getAllResonances() {
         return stream().collect(Collectors.toCollection(ArrayList::new));
     }
@@ -183,18 +194,35 @@ public class AstroMatrix {
      * данной карты или карт по указанной гармонике.
      *
      * @param harmonic гармоника, по которой выделяются паттерны.
+     * @param activeCharts из каких карт следует рассматривать астры.
      * @return список паттернов из астр этой карты или карт, резонирующих
      * по указанной гармонике, сортированный по средней силе.
      * Если ни одного паттерна не обнаруживается, то пустой список.
      */
-    public List<Pattern> findPatterns(int harmonic) {
+    public List<Pattern> findPatterns(int harmonic, List<Chart> activeCharts) {
+        boolean[] acceptable = getAcceptanceMask(activeCharts);
         boolean[] analyzed = new boolean[allAstras.size()];
         return range(0, allAstras.size())
-                .filter(i -> !analyzed[i])
-                .mapToObj(i -> gatherResonants(i, harmonic, analyzed))
+                .filter(i -> acceptable[i] && !analyzed[i])
+                .mapToObj(i -> gatherResonants(i, harmonic, analyzed, acceptable))
                 .filter(Pattern::isValid)
                 .sorted(Comparator.comparingDouble(Pattern::getAverageStrength).reversed())
                 .toList();
+    }
+
+    /**
+     * Создаёт битовую маску на список всех астр, отмечающую,
+     * какие из них должны рассматриваться в некотором анализе.
+     * @param charts карты, астры которых должны быть отмечены.
+     * @return  булев массив, где {@code true} означает, что астра
+     * в таким номером должна рассматриваться, а {@code false} — что нет.
+     */
+    private boolean[] getAcceptanceMask(List<Chart> charts) {
+        boolean[] mask = new boolean[allAstras.size()];
+        range(0, allAstras.size())
+                .filter(i -> charts.contains(allAstras.get(i).getHeaven()))
+                .forEach(i -> mask[i] = true);
+        return mask;
     }
 
     /**
@@ -207,20 +235,22 @@ public class AstroMatrix {
      *
      * @param astraIndex индекс исходной астры в списке астр этой Карты.
      * @param harmonic   номер гармоники, по которому надо проверить узор.
-     * @param analyzed   вспомогательный массив, отмечающий, какие астры
+     * @param acceptable    битовая маска, выбирающая те астры, по которым
+     *                      надо проводить анализ.
+     * @param analyzed   битовая маска, отмечающая, какие астры
      *                   из списка астр этой Карты уже проверены на этот резонанс.
      * @return паттерн, содержащий исходную астру и все связанные с ней
      * по указанной гармонике астры из списка астр этой карты; паттерн,
      * содержащий одну исходную астру, если резонансов по этой гармонике нет.
      */
-    private Pattern gatherResonants(int astraIndex, int harmonic, boolean[] analyzed) {
+    private Pattern gatherResonants(int astraIndex, int harmonic, boolean[] analyzed, boolean[] acceptable) {
         Astra startingAstra = allAstras.get(astraIndex);
         analyzed[astraIndex] = true;
         Pattern currentPattern = new Pattern(harmonic, this);
         currentPattern.addAstra(startingAstra);
-        getConnectedAstras(startingAstra, harmonic).stream()
+        getConnectedAstras(startingAstra, harmonic, acceptable).stream()
                 .filter(a -> !analyzed[allAstras.indexOf(a)])
-                .map(a -> gatherResonants(allAstras.indexOf(a), harmonic, analyzed))
+                .map(a -> gatherResonants(allAstras.indexOf(a), harmonic, analyzed, acceptable))
                 .forEach(currentPattern::addAllAstras);
         return currentPattern;
     }
@@ -230,14 +260,15 @@ public class AstroMatrix {
      * Рассматриваются все астры из всех карт, по которым построена Матрица:
      * остальные астры той же карты и каждая астра из всех остальных карт.
      *
-     * @param astra    астра, резонансы с которой ищутся.
-     * @param harmonic число, по которому определяется резонанс.
+     * @param astra      астра, резонансы с которой ищутся.
+     * @param harmonic   число, по которому определяется резонанс.
+     * @param acceptable    маска, какие астры следует рассматривать.
      * @return список астр, находящих в резонансе с данной по указанной гармонике.
      * Орбис для аспектов между астрами из разных карт учитывается соответственно
      * глобально определённым правилам.
      */
-    public List<Astra> getConnectedAstras(Astra astra, int harmonic) {
-        return resonancesFor(astra)
+    public List<Astra> getConnectedAstras(Astra astra, int harmonic, boolean[] acceptable) {
+        return resonancesFor(astra, acceptable)
                 .stream().filter(r -> r.hasHarmonicResonance(harmonic))
                 .map(r -> r.getCounterpart(astra))
                 .collect(Collectors.toList());
@@ -294,4 +325,14 @@ public class AstroMatrix {
     }
 
 
+    public PatternAnalysis getPatternAnalysis(List<Chart> charts) {
+        PatternAnalysis anal = new PatternAnalysis();
+
+        IntStream.rangeClosed(1, Settings.getEdgeHarmonic())
+                .forEach(i -> findPatterns(i, charts).stream()
+                        .filter(pat -> pat.ofHeavenSet(charts) )
+                        .forEach(anal::addPattern));
+
+        return anal;
+    }
 }

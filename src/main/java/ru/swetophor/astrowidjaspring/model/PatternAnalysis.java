@@ -1,6 +1,7 @@
 package ru.swetophor.astrowidjaspring.model;
 
 import ru.swetophor.astrowidjaspring.config.Settings;
+import ru.swetophor.astrowidjaspring.model.chart.Chart;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,7 @@ import static ru.swetophor.astrowidjaspring.utils.Decorator.singularFrame;
 
 /**
  * Удобная обёртка для представления результатов гармонического анализа карты.
+ *
  */
 public class PatternAnalysis {
     private final SortedMap<Integer, List<Pattern>> listMap = new TreeMap<>();

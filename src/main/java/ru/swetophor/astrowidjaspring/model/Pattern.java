@@ -270,8 +270,19 @@ public class Pattern {
         return new HashSet<>(heavens);
     }
 
+    public boolean ofHeavenSet(Collection<Chart> heavens) {
+        return getDimension() == heavens.size() &&
+                checkHeavens().containsAll(new HashSet<>(heavens));
+    }
 
+
+    /**
+     * Группа астр, находящаяся в соединении в карте радикса.
+     */
     private class Cluster {
+        /**
+         * К какому п
+         */
         Pattern host;
         Set<Astra> conjuncted = new HashSet<>();
 

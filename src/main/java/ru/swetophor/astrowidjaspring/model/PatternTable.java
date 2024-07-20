@@ -1,11 +1,9 @@
 package ru.swetophor.astrowidjaspring.model;
 
-import ru.swetophor.astrowidjaspring.config.Settings;
 import ru.swetophor.astrowidjaspring.model.chart.Chart;
 import ru.swetophor.astrowidjaspring.utils.Decorator;
 
 import java.util.*;
-import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.joining;
 
@@ -33,9 +31,8 @@ public class PatternTable {
     /**
      * Строит {@link PatternTable Таблицу Узоров} для представления списков паттернов,
      * найденных по {@link AstroMatrix АстроМатрице}. Ключами становятся все возможные сочетания
-     * исходных карт. Значениями ставятся объекты {@link PatternAnalysis Анализ Паттернов},
-     * которые затем заполняются с помощью {@link #addPattern} для всех групп паттернов,
-     * которые будут рассчитаны для Матрицы.
+     * исходных карт, а значениями ставятся объекты {@link PatternAnalysis Анализов Паттернов},
+     * построенные для каждого особенного сочетания карт в многокарте.
      * Таким образом, если Матрица построена по всего лишь
      * одной карте, в сопоставлении будет только одна запись.
      * Если {@code sourceCharts} содержит карты {@code {А,Б}},
@@ -45,24 +42,7 @@ public class PatternTable {
     public PatternTable(AstroMatrix matrix) {
         heavens = matrix.getHeavens();
         matrix.heavenCombinations(false).forEach(combination ->
-                tables.put(combination, new PatternAnalysis()));
-
-        IntStream.rangeClosed(1, Settings.getEdgeHarmonic())
-                .forEach(i -> matrix.findPatterns(i).forEach(this::addPattern));
-    }
-
-    /**
-     * Добавляет {@link Pattern узор} в нужный {@link PatternAnalysis узор-разбор} соответственно его
-     * хозяевам (т.е. к анализу паттернов, соответствующему
-     * набору исходных карт, к которому принадлежат астры паттерна)
-     * @param pattern добавляемый к Таблице очередной узор.
-     */
-    public void addPattern(Pattern pattern) {
-        tables.keySet().stream()
-                .filter(scope -> new HashSet<>(scope).equals(pattern.checkHeavens()))
-                .findFirst()
-                .ifPresentOrElse(scope -> tables.get(scope).addPattern(pattern),
-                        () -> { throw new IllegalArgumentException("Добавление паттерна не в ту таблицу"); });
+                tables.put(combination, matrix.getPatternAnalysis(combination)));
     }
 
     /**
@@ -102,10 +82,6 @@ public class PatternTable {
          а также — !! — нахождение узоров не только по одному числу,
          т.е. связанные сложным резонансом группы астр (могут быть сильными) */
 
-   /* TODO: субпаттерны паттернов, включающие астры только одной привходящей
-        карты в многокарте, должны отображаться в анализе узоров для этой одной карты,
-        а не только в том, который характеризован для всех участников полного паттерна;
-        то же для любого подмножества, если многокарта более чем двойная. */
 
     /* TODO: заголовок синастрий должен объявлять карты как А и Б (и т.д.)
         и именно таким индексом маркировать астры по ходу отчёта */

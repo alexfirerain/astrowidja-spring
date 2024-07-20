@@ -43,7 +43,8 @@ public class LibraryService {
      * <p>
      * Если в рабочую папку были добавлены файлы данных со временем
      * изменения старше, чем самый новый файл, они будут прочитаны только
-     * при следующем запуске АстроВидьи.
+     * при следующем запуске АстроВидьи. Их обновление может быть подгружено
+     * инструкцией {@link #reloadLibrary()}.
      */
     public void updateLibrary() {
         if (library.isEmpty()) {
@@ -77,7 +78,7 @@ public class LibraryService {
 
     @PostConstruct
     public void initializeChartIndex() {
-        updateLibrary();
+        reloadLibrary();
     }
 
     /**
@@ -120,7 +121,6 @@ public class LibraryService {
                             .forEach(output::append);
                 });
         return output.toString();
-        // TODO: корректно считывать синастрии из файла (отображать ли привходящие одинарные)
     }
 
     /**
