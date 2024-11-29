@@ -133,7 +133,7 @@ public class LibraryService {
      * @return список карт с указанным номером или названием.
      * @throws IllegalArgumentException если по вводу не опознан список.
      */
-    public ChartList findList(String chartListOrder) {
+    public ChartList findAlbum(String chartListOrder) {
         int groupIndex;
         List<String> albumNames = library.stream()
                 .map(AlbumInfo::name)
@@ -141,7 +141,7 @@ public class LibraryService {
         try {
             groupIndex = defineIndexFromInput(chartListOrder, albumNames);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Списка не найдено: " + e);
+            throw new IllegalArgumentException("Альбома не найдено: " + e);
         }
         return chartRepository.getAlbumSubstance(albumNames.get(groupIndex));
     }

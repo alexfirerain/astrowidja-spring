@@ -22,7 +22,7 @@ public interface ChartRepository {
 
     String addChartsToAlbum(ChartList table, String target);
 
-    boolean addChartsToAlbum(String s, ChartObject... chartObject);
+    boolean addChartsToAlbum(String album, ChartObject... chartObject);
 
     String saveChartsAsAlbum(ChartList content, String albumName);
 

@@ -23,6 +23,10 @@ public class Environments {
      */
     public static Path baseDir;
     /**
+     * Папка с отчётами, создаваемая в папке программы.
+     */
+    public static Path reportsDir;
+    /**
      * Файл с настройками, хранимый в папке программы.
      */
     public static Path settingsSource;
@@ -31,6 +35,7 @@ public class Environments {
     public void prepareFolders() {
         makeDir(appDir);
         makeDir(baseDir);
+        makeDir(reportsDir);
     }
 
     private static void makeDir(Path path) {
@@ -53,6 +58,11 @@ public class Environments {
     @Autowired
     public void setBaseDir(@Qualifier("base-dir") String base) {
         baseDir = appDir.resolve(base);
+    }
+
+    @Autowired
+    public void setReportsDir(@Qualifier("reports-dir") String reports) {
+        reportsDir = appDir.resolve(reports);
     }
 
     @Autowired

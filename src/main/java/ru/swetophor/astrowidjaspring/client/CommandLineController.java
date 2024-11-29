@@ -1,5 +1,6 @@
 package ru.swetophor.astrowidjaspring.client;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import ru.swetophor.astrowidjaspring.exception.ChartNotFoundException;
 import ru.swetophor.astrowidjaspring.exception.EmptyRequestException;
@@ -10,6 +11,7 @@ import ru.swetophor.astrowidjaspring.model.chart.Chart;
 import ru.swetophor.astrowidjaspring.model.chart.ChartList;
 import ru.swetophor.astrowidjaspring.model.chart.ChartObject;
 import ru.swetophor.astrowidjaspring.model.chart.MultiChart;
+import ru.swetophor.astrowidjaspring.service.ExportService;
 import ru.swetophor.astrowidjaspring.service.HarmonicService;
 import ru.swetophor.astrowidjaspring.service.LibraryService;
 import ru.swetophor.astrowidjaspring.utils.Mechanics;
@@ -25,6 +27,7 @@ import static ru.swetophor.astrowidjaspring.mainframe.Main.DEFAULT_ASTRO_SET;
 import static ru.swetophor.astrowidjaspring.utils.Decorator.*;
 
 @Component
+@RequiredArgsConstructor
 public class CommandLineController implements UserController {
 
     public static final Scanner KEYBOARD = new Scanner(System.in);
@@ -34,10 +37,11 @@ public class CommandLineController implements UserController {
     public static boolean negativeAnswer(String value) {
         return noValues.contains(value.toLowerCase());
     }
-
     public static boolean positiveAnswer(String value) {
         return yesValues.contains(value.toLowerCase());
     }
+
+    private final ExportService exportService;
 
     /*
         Циклы меню
@@ -50,13 +54,18 @@ public class CommandLineController implements UserController {
         boolean exit = false;
         while (!exit) {
             showMainMenu();
-            switch (getUserInput()) {
-                case "1", "стол" -> displayDesk(desk);
-                case "2", "настройки" -> editSettings(application);
-                case "3", "карты" -> libraryCycle(application);
-                case "4", "анализ" -> workCycle(application);
-                case "5", "добавить" -> addChartFromUserInput(desk);
-                case "0", "выход" -> exit = true;
+            try {
+                String userInput = getUserInput();
+                switch (userInput) {
+                    case "1", "стол" -> displayDesk(desk);
+                    case "2", "настройки" -> editSettings(application);
+                    case "3", "карты" -> libraryCycle(application);
+                    case "4", "анализ" -> workCycle(application);
+                    case "5", "добавить" -> addChartFromUserInput(desk);
+                    case "0", "выход" -> exit = true;
+                }
+            } catch (Exception e) {
+                print(e.getLocalizedMessage());
             }
         }
         print("Спасибо за ведание резонансов!");
@@ -100,7 +109,7 @@ public class CommandLineController implements UserController {
                             .formatted(parameter));
                 }
             } catch (NumberFormatException e) {
-                print("Не удалось прочитать значение.");
+                print("Не удалось прочитать значение '%s'".formatted(value));
             }
         }
         saveSettings();
@@ -129,8 +138,10 @@ public class CommandLineController implements UserController {
             } else if (input.equals("==")) {
                 printInAsterisk(libraryService.listAlbumsContents());
 
+                // синхронизировать библиотеку с диском и показать
             } else if (input.equals("+=")) {
                 libraryService.reloadLibrary();
+                printInAsterisk(libraryService.listAlbums());
 
             // удаление файла (группы)
             } else if (input.toLowerCase().startsWith("xxx") || input.toLowerCase().startsWith("ххх")) {
@@ -139,7 +150,7 @@ public class CommandLineController implements UserController {
                 // очистка стола и загрузка в него карт из группы (из файла)
             } else if (input.endsWith(">>")) {
                 try {
-                    DESK.substitute(libraryService.findList(extractOrder(input, -2)));
+                    DESK.substitute(libraryService.findAlbum(extractOrder(input, -2)));
                     displayDesk(DESK);
                 } catch (IllegalArgumentException e) {
                     print(e.getLocalizedMessage());
@@ -148,17 +159,17 @@ public class CommandLineController implements UserController {
                 // добавление къ столу карт из группы (из файла)
             } else if (input.endsWith("->")) {
                 try {
-                    DESK.addAll(libraryService.findList(extractOrder(input, -2)));
+                    DESK.addAll(libraryService.findAlbum(extractOrder(input, -2)));
                     displayDesk(DESK);
                 } catch (IllegalArgumentException e) {
                     print(e.getLocalizedMessage());
                 }
 
-                // сохранение стола в новый файл (группу)
+                // сохранение стола в новый файл (альбом)
             } else if (input.startsWith(">>")) {
                 libraryService.saveChartsAsAlbum(DESK, extractOrder(input, 2));
 
-                // добавление стола к существующему файлу (группе)
+                // добавление стола к существующему файлу (альбому)
             } else if (input.startsWith("->")) {
                 print(libraryService.addChartListToAlbum(DESK, extractOrder(input, 2)));
             }
@@ -178,6 +189,7 @@ public class CommandLineController implements UserController {
         LibraryService libraryService = application.getLibraryService();
         HarmonicService harmonicService = application.getHarmonicService();
         ChartList DESK = application.DESK;
+        // ТУДУ: попробовать обойтись просто инъекцией
 
         if (activeChart == null)
             application.setActiveChart(activeChart = selectChartOnDesk(DESK));
@@ -192,54 +204,84 @@ public class CommandLineController implements UserController {
         String input;
         while (true) {
             input = getUserInput();
+
+            // выход из рабочего цикла, возврат в главный цикл
             if (input == null || input.isBlank()) {
                 application.setActiveScreen(MAIN);
                 return;
             }
 
+            // сохранение текущей карты в указанный альбом (файл)
             if (input.startsWith("->")) {
                 libraryService.addChartsToAlbum(extractOrder(input, 2), activeChart);
 
+            // создание на стол синастрии текущей карты с указанной картой со стола
             } else if (input.startsWith("+")) {
-                ChartObject counterpart;
                 String order = extractOrder(input, 1);
                 try {
-                    counterpart = findChart(DESK, order, "на столе");
+                    ChartObject counterpart = findChart(DESK, order, "на столе");
                     print(addChart(new MultiChart(activeChart, counterpart), DESK));
                 } catch (ChartNotFoundException e) {
                     print("Карта '%s' не найдена: %s".formatted(order, e.getLocalizedMessage()));
                 }
-
+            // создание на стол композитной карты из текущей и указанной со стола
             } else if (input.startsWith("*")) {
-                if (activeChart instanceof Chart) {
-                    ChartObject counterpart;
-                    String order = extractOrder(input, 1);
-                    try {
-                        counterpart = findChart(DESK, order, "на столе");
-                        print(counterpart instanceof Chart ?
-                                addChart(Mechanics.composite((Chart) activeChart, (Chart) counterpart), DESK) :
-                                "Композит строится для двух одинарных карт.");
-                    } catch (ChartNotFoundException e) {
-                        print("Карта '%s' не найдена: %s".formatted(order, e.getLocalizedMessage()));
-                    }
-                } else {
-                    print("Композит строится для двух одинарных карт.");
+                String order = extractOrder(input, 1);
+                try {
+                    ChartObject counterpart = findChart(DESK, order, "на столе");
+                    if (activeChart instanceof Chart && counterpart instanceof Chart)
+                            print(addChart(
+                                    Mechanics.composite((Chart) activeChart,
+                                                        (Chart) counterpart),
+                                    DESK));
+                    else
+                        throw new ChartNotFoundException("Композит строится для двух одинарных карт.");
+                } catch (ChartNotFoundException e) {
+                    print("Карта '%s' не найдена: %s".formatted(order, e.getLocalizedMessage()));
                 }
+            // смена активной карты (интерактивная)
+            } else if (input.equals("=")) {
+                application.setActiveChart(activeChart = selectChartOnDesk(DESK));
 
-            }
-            else switch (input) {
-                    case "=" -> {
-                        application.setActiveChart(activeChart = selectChartOnDesk(DESK));
-                        if (activeChart == null) {
-                            application.setActiveScreen(MAIN);
-                            return;
-                        }
-                    }
-                    case "1" -> print(activeChart.getAstrasList());
-                    case "2" -> print(harmonicService.calculateAspectTable(activeChart).getAspectReport());
-                    case "3" -> print(harmonicService.calculatePatternTable(activeChart).getPatternReport(false));
-                    case "4" -> print(harmonicService.calculatePatternTable(activeChart).getPatternReport(true));
+            // смена активной карты (директивная)
+            } else if (input.startsWith("=")) {
+                String order = extractOrder(input, 1);
+                try {
+                    application.setActiveChart(activeChart = findChart(DESK, order, "на столе"));
+                } catch (ChartNotFoundException e) {
+                    print("Карта '%s' не найдена: %s".formatted(order, e.getLocalizedMessage()));
                 }
+            }
+
+            if (activeChart == null) {
+                application.setActiveScreen(MAIN);
+                return;
+            }
+            boolean toFile = input.endsWith("f") || input.endsWith("ф");
+
+            String commandCode = input.substring(0, 1);
+            String result = switch (commandCode) {
+                case "1" -> activeChart.getAstrasList();
+                case "2" -> harmonicService.calculateAspectTable(activeChart).getAspectReport();
+                case "3" -> harmonicService.calculatePatternTable(activeChart).getPatternReport(false);
+                case "4" -> harmonicService.calculatePatternTable(activeChart).getPatternReport(true);
+                default -> null;
+            };
+            if (result == null) continue;
+            if (toFile) {
+                String fileName = activeChart.getName() +
+                    switch (commandCode) {
+                        case "1" -> " - список астр";
+                        case "2" -> " - отчёт по созвукам";
+                        case "3" -> " - отчёт по узорам";
+                        case "4" -> " - детальный отчёт по узорам";
+                        default -> " - ";
+                    } + ".txt";
+                exportService.exportReport(result, fileName);
+            } else {
+                print(result);
+            }
+
         }
     }
 
@@ -250,6 +292,7 @@ public class CommandLineController implements UserController {
     /**
      * Получает ввод пользователя.
      * @return строку, введённую юзером с клавиатуры.
+     * Начальные и конечные пробелы очищаются.
      */
     public String getUserInput() {
         return KEYBOARD.nextLine().trim();
@@ -268,9 +311,15 @@ public class CommandLineController implements UserController {
      * Предлагает ввести название, затем координаты в виде "градусы минуты секунды"
      * (или "знак градусы минуты секунды", где знак это число от 1 до 12)
      * для каждой стандартной {@link AstraEntity АстроСущности}. Затем предлагает вводить
-     * дополнительные {@link Astra астры} в виде "название градусы минуты секунды".
+     * дополнительные {@link Astra астры} в виде строки "название градусы минуты секунды"
+     * (либо аналогично с номером знака).
+     * <p>
      * Пустой ввод означает пропуск астры или отказ от дополнительного ввода.
-
+     * <p>
+     * Ввод астры с повторяющимся именем эквивалентен переписыванию первых данных вторыми
+     * (например, если въ ввод закралась ошибка), при этом астра остаётся в первоначальной
+     * позиции относительно других астр в списке, как реализовано в {@link Chart#addAstra(Astra)}.
+     *
      * @return  многострочный пользовательский ввод,
      * соответствующий текстовому представлению данных карты,
      * аналогично как для сохранения.
@@ -283,7 +332,10 @@ public class CommandLineController implements UserController {
             if (!input.isBlank())
                 userOrder.append("%s %s%n".formatted(a.name, input));
         }
-        console("Ввод дополнительных астр в формате\n'название градусы минуты секунды':\n");
+        console("""
+                Ввод дополнительных астр в формате
+                'название градусы минуты секунды':
+                или 'знак градусы минуты секунды'""");
         String input = getUserInput();
         while (!input.isBlank()) {
             userOrder.append(input).append("\n");
@@ -530,11 +582,11 @@ public class CommandLineController implements UserController {
     public boolean mergeChartToListSilently(ChartList list, ChartObject chart, boolean replace) {
         if (!list.contains(chart.getName()))
             return list.addItem(chart);
-        if (replace) {
+
+        if (replace)
             list.setItem(list.indexOf(chart), chart);
-            return true;
-        }
-        return false;
+
+        return replace;
     }
 
     /**

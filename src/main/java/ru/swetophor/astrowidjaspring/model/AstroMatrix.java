@@ -330,7 +330,7 @@ public class AstroMatrix {
 
         IntStream.rangeClosed(1, Settings.getEdgeHarmonic())
                 .forEach(i -> findPatterns(i, charts).stream()
-                        .filter(pat -> pat.ofHeavenSet(charts) )
+                        .filter(pat -> pat.ofHeavenSet(charts))
                         .forEach(anal::addPattern));
 
         return anal;

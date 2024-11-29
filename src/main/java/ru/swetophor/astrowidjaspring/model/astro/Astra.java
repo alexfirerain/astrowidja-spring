@@ -19,7 +19,7 @@ import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.normalizeCo
  */
 @Getter
 @Setter
-public class Astra {
+public class Astra implements ZodiacPoint {
     /**
      * Идентифицирующее имя астры.
      */
@@ -82,24 +82,20 @@ public class Astra {
      *                                  координату, не равно одному, двум, трём или четырём.
      */
     public static Astra fromData(String name, Double... coordinate) {
-        switch (coordinate.length) {
+        return switch (coordinate.length) {
             case 0 -> throw new IllegalArgumentException("координат нет");
-            case 1 -> {
-                return new Astra(name, coordinate[0]);
-            }
-            case 2 -> {
-                return new Astra(name, coordinate[0], coordinate[1]);
-            }
-            case 3 -> {
-                return new Astra(name, coordinate[0], coordinate[1], coordinate[2]);
-            }
+            case 1 -> new Astra(name, coordinate[0]);
+            case 2 -> new Astra(name, coordinate[0], coordinate[1]);
+            case 3 -> new Astra(name, coordinate[0], coordinate[1], coordinate[2]);
             case 4 -> {
-                double signNumber = (coordinate[0] - 1) % 12;
+                if (coordinate[0] > 12 || coordinate[0] < 1)
+                    throw new IllegalArgumentException("номер знака от 1 до 12");
+                int signNumber = (int) (coordinate[0] - 1);
                 double degrees = signNumber * 30 + coordinate[1];
-                return new Astra(name, degrees, coordinate[2], coordinate[3]);
+                yield new Astra(name, degrees, coordinate[2], coordinate[3]);
             }
             default -> throw new IllegalArgumentException("слишком много координат");
-        }
+        };
     }
 
     /**

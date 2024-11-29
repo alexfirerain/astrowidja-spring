@@ -2,6 +2,10 @@ package ru.swetophor.astrowidjaspring.utils;
 
 import ru.swetophor.astrowidjaspring.config.Settings;
 import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.astro.ZodiacPoint;
+
+import java.util.*;
+import java.util.stream.IntStream;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
@@ -36,14 +40,25 @@ public final class CelestialMechanics {
     }
 
     /**
-     * Вычисляет эклиптическую дугу между астрами, переданными как объекты
-     *
-     * @param a первая астра.
-     * @param b вторая астра.
-     * @return наименьшую дугу между двумя указанными астрами.
+     * Вычисляет эклиптическую дугу между зодиакальными точками.
+     * @param a первая точка (астра).
+     * @param b вторая точка (астра).
+     * @return наименьшую дугу между двумя указанными астрами (от 0° до 180°).
      */
-    public static double getArc(Astra a, Astra b) {
+    public static double getArc(ZodiacPoint a, ZodiacPoint b) {
         return getArc(a.getZodiacPosition(), b.getZodiacPosition());
+    }
+
+    /**
+     * Вычисляет эклиптическую дугу в направлении от первой
+     * зодиакальной точки до второй.
+     * @param a первая точка (астра).
+     * @param b вторая точка (астра).
+     * @return  направленную дугу от точки {@code a} к точке {@code b} (от 0° до 359°59'59").
+     */
+    public static double getVectorArc(ZodiacPoint a, ZodiacPoint b) {
+        double arc = b.getZodiacPosition() - a.getZodiacPosition();
+        return arc < 0.0 ? 360.0 + arc : arc;
     }
 
     /**
@@ -77,11 +92,11 @@ public final class CelestialMechanics {
      */
     public static double findMedian(double positionA, double positionB) {
         double arc = getArc(positionA, positionB);
-        double minorPosition =
+        double backPosition =
                 normalizeCoordinate(positionA + arc) == positionB ?
                         positionA : positionB;
 
-        return normalizeCoordinate(minorPosition + arc / 2);
+        return normalizeCoordinate(backPosition + arc / 2);
     }
 
     /**
@@ -110,6 +125,22 @@ public final class CelestialMechanics {
         coors[0] = inSeconds / 3600;
         coors[1] = inSeconds % 3600 / 60;
         coors[2] = inSeconds % 60;
+        return coors;
+    }
+
+    /**
+     * Превращает координату дуги из градусов в массив {@code [знак, градусы, минуты, секунды]},
+     * где {@code знак} это натуральное число от 1 до 12.
+     * @param position  дуга в градусах.
+     * @return  массив из четырёх целых величин: номер знака, градусы, минуты и секунды.
+     */
+    public static int[] degreesToSignAndCoors(double position) {
+        int[] coors = new int[4];
+        int[] degreesCoors = degreesToCoors(position);
+        coors[0] = degreesCoors[0] / 30 + 1;
+        coors[1] = degreesCoors[0] % 30;
+        coors[2] = degreesCoors[1];
+        coors[3] = degreesCoors[2];
         return coors;
     }
 
@@ -144,7 +175,7 @@ public final class CelestialMechanics {
      * {@code false}, если вторая астра находится в 180° или более от
      * первой по ходу движения Зодиака.
      */
-    public static boolean isAhead(Astra fromPlanet, Astra planet) {
+    public static boolean isAhead(ZodiacPoint fromPlanet, ZodiacPoint planet) {
         return isAhead(fromPlanet.getZodiacPosition(), planet.getZodiacPosition());
     }
 
@@ -155,7 +186,7 @@ public final class CelestialMechanics {
      * @param harmonic  номер гармоники.
      * @return  угловое расстояние между астрами в карте указанной гармоники.
      */
-    public static double getArcForHarmonic(Astra a, Astra b, int harmonic) {
+    public static double getArcForHarmonic(ZodiacPoint a, ZodiacPoint b, int harmonic) {
         return normalizeArc(getArc(a, b) * harmonic);
     }
 
@@ -180,8 +211,92 @@ public final class CelestialMechanics {
                 delta / (HALF_CIRCLE - orb) * 100;
     }
 
+    /**
+     * Определяет, что две переданные астры принадлежат одной карте и
+     * находятся в соединении. Орбис берётся из глобальных настроек.
+     * @param a     одна астра.
+     * @param b     другая астра.
+     * @return  {@code ДА}, если обе астры расположены в одном небе
+     * и расстояние между ними не больше, чем стандартный определяемый
+     * в программе глобальный первичный орбис.
+     */
     public static boolean areConjuncted(Astra a, Astra b) {
         return Astra.ofSameHeaven(a, b) &&
                 getArc(a, b) <= Settings.getPrimalOrb();
     }
+
+    /**
+     * Сообщает, находятся ли астры в соединении. Орб смотрится соответственно
+     * глобальным настройкам с различением для синастрических и нет.
+     * @param a одна астра
+     * @param b другая астра
+     * @return  {@code ДА}, если расстояние между астрами
+     * (из одной или разных карт) не превышает первичного орба соединения.
+     */
+    public static boolean conjuncting(Astra a, Astra b) {
+        double orb = !Astra.ofSameHeaven(a, b) && Settings.isHalfOrbsForDoubles() ?
+                Settings.getPrimalOrb() / 2 : Settings.getPrimalOrb();
+        return getArc(a, b) <= orb;
+    }
+
+    /**
+     * Сортирует список зодиакальных координат так, чтобы
+     * все они шли в порядке возрастания зодиакальной долготы,
+     * при этом расстояние между первой и последней больше,
+     * чем между любыми соседними парами.
+     * @param astras список точек, который нужно сортировать.
+     */
+    public static void arrangeAsChain(List<? extends ZodiacPoint> astras) {
+        if (astras.size() > 1) {
+            astras.sort(Comparator.comparing(ZodiacPoint::getZodiacPosition));
+
+            double maxDist = getVectorArc(astras.getLast(), astras.getFirst());
+            int maxDistIndex = 0;
+
+            for (int i = 1; i < astras.size(); i++) {
+                double dist = getVectorArc(astras.get(i - 1), astras.get(i));
+                if (dist > maxDist) {
+                    maxDistIndex = i;
+                    maxDist = dist;
+                }
+            }
+            Collections.rotate(astras, -maxDistIndex);
+        }
+    }
+
+    /**
+     * Сортирует список зодиакальных координат так, чтобы
+     * все они шли в порядке возрастания зодиакальной долготы,
+     * при этом расстояние между первой и последней больше,
+     * чем между любыми соседними парами.
+     * @param astras    список точек, который нужно сортировать.
+     * @return тот же список, отсортированный по порядку
+     * явления этих точек в Зодиаке.
+     */
+    public static List<ZodiacPoint> getArrangedAsChain(Collection<? extends ZodiacPoint> astras) {
+        List<ZodiacPoint> newList = new ArrayList<>(astras);
+        arrangeAsChain(newList);
+        return newList;
+    }
+
+    /**
+     * Вычисляет "центр тяжести" (центроид) для нескольких точек
+     * на зодиакальном круге.
+     * @param points    точки, для которых считается средняя.
+     * @return  координату на окружности, являющуюся средней для данных точек.
+     */
+    public static double calculateAvg(ZodiacPoint... points) {
+        if (points.length == 1)
+            return points[0].getZodiacPosition();
+
+        List<ZodiacPoint> astras = new ArrayList<>(List.of(points));
+        arrangeAsChain(astras);
+
+        ZodiacPoint first = astras.getFirst();
+        double sum = IntStream.range(1, astras.size())
+                .mapToDouble(i -> getVectorArc(first, astras.get(i)))
+                .sum();
+        return normalizeCoordinate(first.getZodiacPosition() + sum / astras.size());
+    }
+
 }

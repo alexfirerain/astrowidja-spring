@@ -175,6 +175,12 @@ public final class Harmonics extends Number implements Comparable<Harmonics> {
                 .contains(numeric);
     }
 
+    /**
+     * Скажет, является ли данная гармоника кратной некоторому числу.
+     * @param number    число, проверяемое на кратность.
+     * @param multiplier    число, кратность с которым проверяется.
+     * @return {@code true}, если первый аргумент делится нацело на второй.
+     */
     public static boolean isMultiple(int number, int multiplier) {
         return number % multiplier == 0;
     }

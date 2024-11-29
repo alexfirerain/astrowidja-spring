@@ -13,6 +13,8 @@ public class Infrastructure {
     private String settings;
     @Value("${astrowidja.base-dir}")
     private String baseDir;
+    @Value("${astrowidja.reports-dir}")
+    private String reportsDir;
 
 
     @Bean
@@ -32,4 +34,12 @@ public class Infrastructure {
     public String getBaseDirFromSettings() {
         return baseDir;
     }
+
+    @Bean
+    @Qualifier("reports-dir")
+    public String getReportsDirFromSettings() {
+        return reportsDir;
+    }
+
+
 }

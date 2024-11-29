@@ -3,6 +3,7 @@ package ru.swetophor.astrowidjaspring.model;
 import lombok.Getter;
 import ru.swetophor.astrowidjaspring.config.Settings;
 import ru.swetophor.astrowidjaspring.model.astro.Astra;
+import ru.swetophor.astrowidjaspring.model.astro.ZodiacPoint;
 import ru.swetophor.astrowidjaspring.model.chart.Chart;
 import ru.swetophor.astrowidjaspring.utils.CelestialMechanics;
 
@@ -10,8 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.calculateStrength;
-import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.getArcForHarmonic;
+import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.*;
 
 /**
  * Олицетворяет группу связанных каким-то резонансом точек
@@ -22,7 +22,6 @@ import static ru.swetophor.astrowidjaspring.utils.CelestialMechanics.getArcForHa
  */
 @Getter
 public class Pattern {
-
     /**
      * По какому гармоническому числу выделен паттерн.
      */
@@ -142,7 +141,7 @@ public class Pattern {
      */
     public String getConnectivityReport() {
         return size() == 1 ? "%s (-)%n".formatted(getJustString()) :
-                "%s: %.0f%% (%d):%n\t".formatted(getClusteredString(), getAverageStrength(), size())
+                "%s: %.0f%% (%d):%n\t".formatted(getClusteredLines(), getAverageStrength(), size())
                         +
                         getAstrasByConnectivity().stream()
                                 .map(astra -> "%s%s :%.0f%%"
@@ -151,6 +150,31 @@ public class Pattern {
                                                 calculateStrength(defineOrb(), elements.get(astra) / (size() - 1))))
                                 .collect(Collectors.joining(" / "));
     }
+
+//    /**
+//     * Выдаёт многострочное представление паттерна.
+//     * Первая строка докладывает среднюю силу связанности паттерна и кол-во астр.
+//     * Каждая следующая строка (смещённая вправо табуляцией) содержит
+//     * символ астры и (в скобках) среднюю силу её связанности с другими элементами паттерна.
+//     * Если паттерн включает астры из более чем одной карты, вслед
+//     * за именем и координатой астры отображается также краткое имя владельца.
+//     * Если паттерн содержит только одну астру (такой паттерн не считается
+//     * валидным, и такой случай не должен возникать), представление имеет вид
+//     * {@code "{символ} (-)"}.
+//     *
+//     * @return многостроку с представлением паттерна.
+//     */
+//    public String getConnectivityReport() {
+//        return size() == 1 ? "%s (-)%n".formatted(getJustString()) :
+//                "%s: %.0f%% (%d):%n\t".formatted(getClusteredString(), getAverageStrength(), size())
+//                        +
+//                        getAstrasByConnectivity().stream()
+//                                .map(astra -> "%s%s :%.0f%%"
+//                                        .formatted(astra.getSymbolWithDegree(),
+//                                                getDimension() > 1 ? "<%s>".formatted(astra.getHeaven().getShortenedName(4)) : "",
+//                                                calculateStrength(defineOrb(), elements.get(astra) / (size() - 1))))
+//                                .collect(Collectors.joining(" / "));
+//    }
 
     // TODO: сделать (скорее всего в МногоКарте или в Астро Матрице)
     //  умное сокращение названий карт
@@ -203,6 +227,8 @@ public class Pattern {
         return size() < 2 ?
                 0.0 :
                 calculateStrength(defineOrb(), totalClearance / possiblePairs());
+        // TODO: использование сокращённого орба в синастрическом паттерне
+        //  приводит к неправильной оценке силы аспектов между астрами одной карты
     }
 
     /**
@@ -234,6 +260,13 @@ public class Pattern {
                 .collect(Collectors.joining());
     }
 
+    /**
+     * Выдаёт представляющую паттерн строку, в которой
+     * астры, пребывающие в соединении в одной из карт,
+     * выделены фигурными скобками.
+     * @return  строковое представление паттерна с отмеченными
+     * кластерами соединений.
+     */
     public String getClusteredString() {
         return clusters.stream()
                 .sorted(Comparator.comparing(Cluster::getAverageConnectivity))
@@ -241,6 +274,82 @@ public class Pattern {
                 .collect(Collectors.joining());
     }
     // TODO: исправить отображение кластеров в синастрических узорах
+
+    /**
+     * Строит представление паттерна, где астры каждого неба
+     * вынесены в отдельную строку, при этом друг над другом
+     * находятся те астры или кластеры, которые в реальном соединении.
+     * @return  хитропостроенную строку, представляющую узор.
+     */
+    public String getClusteredLines() {
+        // колонки виртуальной таблицы представления
+        var columns = new ArrayList<List<Cluster>>();
+
+        CelestialMechanics.arrangeAsChain(clusters);
+        // какие кластеры уже размещены в квазитаблице
+        boolean[] placed = new boolean[clusters.size()];
+        // перебираем кластеры
+        for (int i = 0; i < clusters.size(); i++) {
+            // ещё не размещённые
+            if (placed[i]) continue;
+
+            // почнём новую колонку
+            List<Cluster> column = new ArrayList<>();
+            column.add(clusters.get(i));
+            placed[i] = true;
+
+            // смотрим, попадёт ли в ту же колонку ещё что-то
+            for (int j = i + 1; j < getClusters().size(); j++) {
+                Cluster further = clusters.get(j);
+
+                for (Cluster alreadyPlaced : column) {
+                    // если кластер в соединении
+                    if (alreadyPlaced.conjunctingCluster(further)) {
+                        // добавим в колонку
+                        column.add(further);
+                        placed[j] = true;
+                        break;
+                    }
+                }
+            }
+            // очередная колонка определена
+            columns.add(column);
+        }
+
+        // определим ширины квазистолбцов
+        int[] widths = columns.stream()
+                .mapToInt(column -> column.stream()
+                        .mapToInt(cl -> cl.toString().length())
+                        .max().orElse(0)
+                ).toArray();
+
+        // построим строки квазитаблицы
+        var rows = new String[getDimension()];
+
+        for (int i = 0; i < rows.length; i++) {
+            Chart owner = heavens.get(i);
+            StringBuilder row = new StringBuilder();
+            for (int j = 0; j < columns.size(); j++) {
+                List<Cluster> col = columns.get(j);
+                boolean clusterPresent = false;
+                for (Cluster cl : col)
+                    if (cl.getHeaven() == owner) {
+                        String cell = cl.toString();
+                        row.append(cell)
+                                .append("-"
+                                        .repeat(widths[j] - cell.length()));
+                        clusterPresent = true;
+                    }
+                if (!clusterPresent)
+                    row.append("-".repeat(widths[j]));
+            }
+            row.append("\n");
+            rows[i] = row.toString();
+        }
+
+        return String.join("", rows);
+    }
+
 
 
     /**
@@ -262,14 +371,32 @@ public class Pattern {
                                 analysis.inResonance(astras.get(i), astras.get(j), harmonic)));
     }
 
+    /**
+     * Вспомогательная функция, определяющая, сколько
+     * парных сочетаний возможно для входящих астр.
+     * @return  число, равное {@code N * (N - 1) / 2},
+     * где N — количество астр в узоре (размерность).
+     */
     private int possiblePairs() {
         return size() * (size() - 1) / 2;
     }
 
+    /**
+     * Выдаёт список небес астр паттерна
+     * в виде набора для быстрой проверки наличия.
+     * @return список небес в виде набора.
+     */
     public Set<Chart> checkHeavens() {
         return new HashSet<>(heavens);
     }
 
+    /**
+     * Удостоверяет, что астры паттерна принадлежат тому же набору
+     * небес, с которым происходит сверка.
+     * @param heavens   сверяемый набор небес.
+     * @return  {@code ДА}, если астры паттерна принадлежат тому
+     * же множеству небес, с каким сверяется.
+     */
     public boolean ofHeavenSet(Collection<Chart> heavens) {
         return getDimension() == heavens.size() &&
                 checkHeavens().containsAll(new HashSet<>(heavens));
@@ -279,44 +406,84 @@ public class Pattern {
     /**
      * Группа астр, находящаяся в соединении в карте радикса.
      */
-    private class Cluster {
+    private class Cluster implements ZodiacPoint {
         /**
-         * К какому п
+         * К какому паттерну относится кластер.
          */
-        Pattern host;
+        Pattern pattern;
+        /**
+         * Астры, входящие в кластер, т.е. находящиеся в соединении.
+         */
         Set<Astra> conjuncted = new HashSet<>();
 
-        public Cluster(Astra astra, Pattern host) {
-            this.host = host;
-            conjuncted.add(astra);
+        public Cluster(Astra astra, Pattern pattern) {
+            this.pattern = pattern;
+            add(astra);
         }
 
         public void add(Astra astra) {
             conjuncted.add(astra);
         }
 
-        public boolean inConjunction(Astra astra) {
+        /**
+         * Сообщает, в чьей карте у нас такой красивый кластер
+         * @return
+         */
+        public Chart getHeaven() {
+            return conjuncted.iterator().next().getHeaven();
+        }
+
+
+        private boolean inConjunction(Astra astra) {
             return conjuncted.stream()
                     .anyMatch(a -> CelestialMechanics.areConjuncted(a, astra));
+        }
+
+        private boolean conjunctingCluster(Cluster another) {
+            return conjuncted.stream()
+                    .anyMatch(a -> another.conjuncted.stream()
+                            .anyMatch(b ->
+                                    !Astra.ofSameHeaven(a, b) && CelestialMechanics.conjuncting(a, b)
+                            )
+                    );
         }
 
         @Override
         public String toString() {
             if (conjuncted.size() == 1)
                 return String.valueOf(conjuncted.iterator().next().getSymbol());
-            String line = host.getAstrasByConnectivity().stream()
-                    .filter(a -> conjuncted.contains(a))
+
+            String line = astrasInCelestialOrder().stream()
                     .map(Astra::getSymbol)
                     .map(String::valueOf)
                     .collect(Collectors.joining());
-            return host.getHarmonic() == 1 ? line : "{%s}".formatted(line);
+            return pattern.getHarmonic() == 1 ?
+                    line :
+                    "{%s}".formatted(line);
         }
 
         public double getAverageConnectivity() {
             return conjuncted.stream()
-                        .mapToDouble(a -> host.elements.get(a))
-                        .sum()
+                    .mapToDouble(a -> pattern.elements.get(a))
+                    .sum()
                     / conjuncted.size();
+        }
+
+        /**
+         * Выдаёт координату точки, являющейся центром тяжести
+         * для кластера, т.е. среднюю между образующими кластер точками.
+         * @return
+         */
+        @Override
+        public double getZodiacPosition() {
+            return calculateAvg(conjuncted.toArray(new ZodiacPoint[0]));
+        }
+
+        public List<Astra> astrasInCelestialOrder() {
+            return CelestialMechanics
+                    .getArrangedAsChain(conjuncted.stream().toList()).stream()
+                    .map(z -> (Astra) z)
+                    .toList();
         }
     }
 

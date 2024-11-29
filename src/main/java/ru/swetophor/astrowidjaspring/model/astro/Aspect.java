@@ -8,6 +8,7 @@ import java.util.List;
 
 import static java.lang.Math.floor;
 import static ru.swetophor.astrowidjaspring.model.Harmonics.findMultiplier;
+import static ru.swetophor.astrowidjaspring.model.astro.PrecisionClass.*;
 import static ru.swetophor.astrowidjaspring.utils.Mechanics.secondFormat;
 
 /**
@@ -61,6 +62,8 @@ public class Aspect {
      */
     private final int depth;
 
+    private final PrecisionClass precisionClass;
+
     /**
      * Конструктор аспекта, т.е. одного из резонансов в дуге.
      * @param numeric      гармоника, т.е. кратность дуги Кругу.
@@ -72,10 +75,19 @@ public class Aspect {
      */
     public Aspect(int numeric, double clearance, double fromArc, double orb) {
         this.numeric = numeric;
-        this.multiplicity = findMultiplier(numeric, fromArc, orb);
         this.clearance = clearance;
-        this.strength = CelestialMechanics.calculateStrength(orb, clearance);
-        this.depth = (int) floor(orb / clearance);
+
+        multiplicity = findMultiplier(numeric, fromArc, orb);
+        strength = CelestialMechanics.calculateStrength(orb, clearance);
+        depth = (int) floor(orb / clearance);
+
+        if (depth <= 0) precisionClass = NONE;
+        else if (depth == 1) precisionClass = APPROXIMATE;
+        else if (depth == 2) precisionClass = CONFIDENT;
+        else if (depth <= 5) precisionClass = DEEP;
+        else if (depth <= 12) precisionClass = ACCURATE;
+        else if (depth <= 24) precisionClass = PRECISE;
+        else precisionClass = EXACT;
     }
     /**
      * Выдаёт список простых множителей, в произведении дающих
@@ -100,6 +112,7 @@ public class Aspect {
     /**
      * Выводит строковую характеристику, насколько точен резонанс.
      * Та же градация, что для рейтинга в виде звёздочек:
+     * <p>{@code -}  <= 0% - отсутствует в данной гармонике</p>
      * <p>{@code приблизительный}  < 50% - присутствует только в данной гармонике</p>
      * <p>{@code уверенный}       50-66% - присутствует в данной и в следующей х2</p>
      * <p>{@code глубокий}        67-83% - сохраняется ещё в гармониках х3, х4 и х5</p>
@@ -109,17 +122,13 @@ public class Aspect {
      * @return строковое представление ранга точности.
      */
     public String getStrengthLevel() {
-        if (depth <= 1) return "- приблизительный ";
-        else if (depth == 2) return "- уверенный ";
-        else if (depth <= 5) return "- глубокий ";
-        else if (depth <= 12) return "- точный ";
-        else if (depth <= 24) return "- глубоко точный ";
-        else return "- крайне точный ";
+        return precisionClass.getDepthDesc();
     }
 
     /**
      * Рейтинг силы, выраженный строкой со звёздочками,
      * та же градация, что для строковой характеристики:
+     * <p>_        <= 0% - отсутствует в данной гармонике</p>
      * <p>★        < 50% - присутствует только в данной гармонике</p>
      * <p>★★       50-66% - присутствует в данной и в следующей х2</p>
      * <p>★★★     67-83% - сохраняется ещё в гармониках х3, х4 и х5</p>
@@ -130,12 +139,7 @@ public class Aspect {
      * @return звездообразный код рейтинга силы согласно соответствию.
      */
     public String strengthRating() {
-        if (depth <= 1) return "★";
-        if (depth == 2) return "★★";
-        if (depth <= 5) return "★★★";
-        if (depth <= 12) return "★★★★";
-        if (depth <= 24) return "★★★★★";
-        return "✰✰✰✰✰";
+        return precisionClass.getRating();
     }
 
     /**

@@ -14,7 +14,10 @@ public class HarmonicService {
     private final Map<ChartObject, AstroMatrix> matrices = new HashMap<>();
 
     private AstroMatrix getMatrix(ChartObject chartObject) {
-        matrices.putIfAbsent(chartObject, new AstroMatrix(chartObject.getData()));
+        if (matrices.get(chartObject) == null)
+            matrices.put(chartObject, new AstroMatrix(chartObject.getData()));
+        // по неизвестной причине, использование .putIfAbsent()
+        // приводит к пересозданию матрицы на каждом обращении
         return matrices.get(chartObject);
     }
 

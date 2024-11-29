@@ -12,3 +12,4 @@ astrowidja:
     working-dir: "astrowidja"
     settings: "settings.ini"
     base-dir: "base"
+    reports-dir: "reports"

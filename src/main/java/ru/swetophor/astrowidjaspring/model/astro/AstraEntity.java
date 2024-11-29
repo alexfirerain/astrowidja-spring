@@ -27,7 +27,7 @@ public enum AstraEntity {
     CHI("Хирон", '⚷', "Chiron"),
     URA("Уран", '♅', "Uranus"),
     NEP("Нептун", '♆', "Neptune"),
-    PLU("Плутон", '♇', "Pluto"),
+    PLU("Плутон", '⯓', "Pluto"),
     RAH("Раху", '☊', "Rahu"),
     LIL("Лилит", '⚸', "Lilith");
 

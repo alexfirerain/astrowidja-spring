@@ -26,6 +26,7 @@ import static java.util.stream.Collectors.joining;
  */
 public class PatternTable {
     private final Chart[] heavens;
+    
     private final Map<List<Chart>, PatternAnalysis> tables = new LinkedHashMap<>();
 
     /**

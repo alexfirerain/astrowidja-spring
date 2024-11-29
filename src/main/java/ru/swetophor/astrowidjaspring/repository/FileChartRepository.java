@@ -273,22 +273,27 @@ public class FileChartRepository implements ChartRepository {
 
     /**
      * Добавляет указанные карты к файлу с указанным названием.
-     * @param file  название файла (группы), к которому добавлять.
+     * @param album  название файла (группы), к которому добавлять.
      * @param charts карты, которые вливаются в файл. Если возникает
      *               конфликт названия, идёт интерактивное уточнение.
      * @return  изменился ли список (файл) в результате вызова функции.
      */
-    @SneakyThrows
     @Override
-    public boolean addChartsToAlbum(String file, ChartObject... charts) {
-        file = addExtension(file);
-        ChartList fileContent = readChartsFromDAW(file);
+    public boolean addChartsToAlbum(String album, ChartObject... charts) {
+        album = addExtension(album);
+        ChartList fileContent;
+        try {
+            fileContent = readChartsFromDAW(album);
+        } catch (FileNotFoundException e) {
+            console("Файла %s нет: %s".formatted(album, e.getLocalizedMessage()));
+            return false;
+        }
         boolean changed = false;
         for (ChartObject c : charts)
-            if (userController.mergeChartIntoList(fileContent, c, file))
+            if (userController.mergeChartIntoList(fileContent, c, removeExtension(album)))
                 changed = true;
         if (changed)
-            saveChartsAsAlbum(fileContent, file);
+            saveChartsAsAlbum(fileContent, album);
         return changed;
     }
 

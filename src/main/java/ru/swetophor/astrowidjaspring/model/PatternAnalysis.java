@@ -1,7 +1,6 @@
 package ru.swetophor.astrowidjaspring.model;
 
 import ru.swetophor.astrowidjaspring.config.Settings;
-import ru.swetophor.astrowidjaspring.model.chart.Chart;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,23 +97,22 @@ public class PatternAnalysis {
      */
     public String getDetailedPatternRepresentation(int harmonic) {
         List<Pattern> patterns = listMap.get(harmonic);
-        if (patterns == null || patterns.isEmpty())
-            return singularFrame("Ни одного паттерна на резонансном числе " + harmonic);
-        else
-            return patterns.stream()
-                .map(pattern -> "%s\n"
-                        .formatted(pattern.getConnectivityReport()))
-                .collect(joining(
-                        "_______\n",
-                        singularFrame(
-                                    """
-                                      Паттерны по числу %d
-                                         <всего планет %d, средняя сила %.0f%%>
-                                    """.formatted(harmonic,
-                                                getAstrasQuantityFor(harmonic),
-                                                getAverageStrengthForHarmonic(harmonic))
-                        ),
-                        "\n"));
+        return patterns == null || patterns.isEmpty() ?
+                singularFrame("Ни одного паттерна на резонансном числе " + harmonic) :
+                patterns.stream()
+                        .map(pattern -> "%s\n"
+                                .formatted(pattern.getConnectivityReport())
+                        ).collect(joining(
+                                "_______\n",
+                                singularFrame(
+                                        """
+                                          Паттерны по числу %d
+                                             <всего планет %d, средняя сила %.0f%%>
+                                        """.formatted(harmonic,
+                                        getAstrasQuantityFor(harmonic),
+                                        getAverageStrengthForHarmonic(harmonic))
+                                ),
+                                "\n"));
     }
 
     /**
@@ -164,4 +162,6 @@ public class PatternAnalysis {
         return output.toString();
 
     }
+
+    // TODO: сделать вывод отчёта по карте в файл
 }

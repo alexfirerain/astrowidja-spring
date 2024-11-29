@@ -20,6 +20,11 @@
       "name": "astrowidja.base-dir",
       "type": "java.lang.String",
       "description": "Name for base directory of program."
+    },
+    {
+      "name": "astrowidja.reports-dir",
+      "type": "java.lang.String",
+      "description": "Name for reports directory of program."
     }
   ]
 }
